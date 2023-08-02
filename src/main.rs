@@ -14,6 +14,8 @@ struct Task {
     id: i32,
     name: String,
     details: String,
+    time_stamp: String,
+    duration: String,
 }
 
 fn format_elapsed_time(elapsed_time: Duration) -> String {
@@ -47,7 +49,9 @@ fn main() -> Result<()> {
         "CREATE TABLE IF NOT EXISTS task (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
-            details TEXT
+            details TEXT,
+            time_stamp TEXT NOT NULL,
+            duration TEXT NOT NULL
     )",
         (),
     )?;
@@ -90,19 +94,23 @@ fn main() -> Result<()> {
         id: 0,
         name: cli.task.to_string(),
         details: cli.details.unwrap_or_default(),
+        time_stamp: "now".to_string(),
+        duration: format_elapsed_time(start_time.elapsed()),
     };
 
     conn.execute(
-        "INSERT INTO task (name, details) VALUES (?1, ?2)",
-        (&task.name, &task.details),
+        "INSERT INTO task (name, details, time_stamp, duration) VALUES (?1, ?2, ?3, ?4)",
+        (&task.name, &task.details, &task.time_stamp, &task.duration),
     )?;
 
-    let mut stmt = conn.prepare("SELECT id, name, details FROM task")?;
+    let mut stmt = conn.prepare("SELECT id, name, details, time_stamp, duration FROM task")?;
     let task_iter = stmt.query_map([], |row| {
         Ok(Task {
             id: row.get(0)?,
             name: row.get(1)?,
             details: row.get(2)?,
+            time_stamp: row.get(3)?,
+            duration: row.get(4)?,
         })
     })?;
 
