@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 use std::sync::{Arc, Mutex};
 use std::{
     io::{self, Read, Write},
@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rusqlite::{params, Connection, Result};
+use rusqlite::{Connection, Result};
 
 #[derive(Debug)]
 struct Task {
@@ -33,6 +33,20 @@ fn format_elapsed_time(elapsed_time: Duration) -> String {
 #[command(version = "1.0")]
 #[command(about = "Keep track of time wasted on tasks", long_about =None)]
 struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Start a new task
+    Start(StartArgs),
+    /// List completed tasks
+    List,
+}
+
+#[derive(Args)]
+struct StartArgs {
     #[arg(long, short)]
     task: String,
     #[arg(long, short)]
@@ -41,81 +55,93 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    println!("task: {:?}", &cli.task);
-    println!("details: {}", &cli.details.clone().unwrap_or_default());
 
-    let conn = Connection::open("./my_db.db3")?;
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS task (
+    match &cli.command {
+        Commands::Start(task) => {
+            println!("task: {:?}", task.task);
+            println!("details: {}", task.details.clone().unwrap_or_default());
+
+            let conn = Connection::open("./my_db.db3")?;
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS task (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             details TEXT,
             time_stamp TEXT NOT NULL,
             duration TEXT NOT NULL
     )",
-        (),
-    )?;
+                (),
+            )?;
 
-    let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
-    let should_terminate_thread = should_terminate.clone();
+            let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
+            let should_terminate_thread = should_terminate.clone();
 
-    let start_time = Instant::now();
-    let handle = thread::spawn(move || loop {
-        thread::sleep(Duration::from_millis(1));
-        print!("\r{}", format_elapsed_time(start_time.elapsed()));
-        io::stdout().flush().unwrap();
-        if should_terminate_thread
-            .lock()
-            .unwrap()
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
-            break;
+            let start_time = Instant::now();
+            let handle = thread::spawn(move || loop {
+                thread::sleep(Duration::from_millis(1));
+                print!("\r{}", format_elapsed_time(start_time.elapsed()));
+                io::stdout().flush().unwrap();
+                if should_terminate_thread
+                    .lock()
+                    .unwrap()
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    break;
+                }
+            });
+            // wait for the user to press Enter to terminate the loop
+            let mut buffer = [0u8; 1];
+            io::stdin().read(&mut buffer).expect("Failed to read line");
+
+            // Set the should_terminate flag to true to signal the loop to terminate
+            should_terminate
+                .lock()
+                .unwrap()
+                .store(true, Ordering::Relaxed);
+
+            // Wait for the loop thread to finish
+            handle.join().expect("The loop thread panicked");
+
+            let task = Task {
+                id: 0,
+                name: task.task.to_string(),
+                details: task.details.clone().unwrap_or_default(),
+                time_stamp: "now".to_string(),
+                duration: format_elapsed_time(start_time.elapsed()),
+            };
+
+            conn.execute(
+                "INSERT INTO task (name, details, time_stamp, duration) VALUES (?1, ?2, ?3, ?4)",
+                (&task.name, &task.details, &task.time_stamp, &task.duration),
+            )?;
+            println!(
+                "\rTask complete! Elapsed time: {:?}",
+                format_elapsed_time(start_time.elapsed())
+            );
         }
-    });
-    // wait for the user to press Enter to terminate the loop
-    let mut buffer = [0u8; 1];
-    io::stdin().read(&mut buffer).expect("Failed to read line");
+        Commands::List => {
+            let conn = Connection::open("./my_db.db3")?;
+            let mut stmt =
+                conn.prepare("SELECT id, name, details, time_stamp, duration FROM task")?;
+            let task_iter = stmt.query_map([], |row| {
+                Ok(Task {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    details: row.get(2)?,
+                    time_stamp: row.get(3)?,
+                    duration: row.get(4)?,
+                })
+            })?;
 
-    // Set the should_terminate flag to true to signal the loop to terminate
-    should_terminate
-        .lock()
-        .unwrap()
-        .store(true, Ordering::Relaxed);
-
-    // Wait for the loop thread to finish
-    handle.join().expect("The loop thread panicked");
-
-    println!(
-        "\rTask complete! Elapsed time: {:?}",
-        format_elapsed_time(start_time.elapsed())
-    );
-
-    let task = Task {
-        id: 0,
-        name: cli.task.to_string(),
-        details: cli.details.unwrap_or_default(),
-        time_stamp: "now".to_string(),
-        duration: format_elapsed_time(start_time.elapsed()),
-    };
-
-    conn.execute(
-        "INSERT INTO task (name, details, time_stamp, duration) VALUES (?1, ?2, ?3, ?4)",
-        (&task.name, &task.details, &task.time_stamp, &task.duration),
-    )?;
-
-    let mut stmt = conn.prepare("SELECT id, name, details, time_stamp, duration FROM task")?;
-    let task_iter = stmt.query_map([], |row| {
-        Ok(Task {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            details: row.get(2)?,
-            time_stamp: row.get(3)?,
-            duration: row.get(4)?,
-        })
-    })?;
-
-    for task in task_iter {
-        println!("Found task {:?}", task.unwrap());
+            for (index, task) in task_iter.enumerate() {
+                let task = task.unwrap();
+                let formatted_task = format!(
+                    "Task Name: {}, id: {}, \n\tdetails: {}, \n\tcreated: {}, \n\tduration: {}",
+                    task.name, task.id, task.details, task.time_stamp, task.duration
+                );
+                println!("{}: {}", index, formatted_task);
+            }
+        }
     }
 
     Ok(())
