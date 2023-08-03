@@ -7,6 +7,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chrono::Utc;
+
 use rusqlite::{Connection, Result};
 
 #[derive(Debug)]
@@ -29,7 +31,7 @@ fn format_elapsed_time(elapsed_time: Duration) -> String {
 
 #[derive(Parser)]
 #[command(author = "Raffaele Cataldo")]
-#[command(name = "TimeBandit")]
+#[command(name = "tb")]
 #[command(version = "1.0")]
 #[command(about = "Keep track of time wasted on tasks", long_about =None)]
 struct Cli {
@@ -72,7 +74,8 @@ fn main() -> Result<()> {
     )",
                 (),
             )?;
-
+            // capture the moment the task was begun
+            let now = Utc::now();
             let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
             let should_terminate_thread = should_terminate.clone();
 
@@ -106,7 +109,7 @@ fn main() -> Result<()> {
                 id: 0,
                 name: task.task.to_string(),
                 details: task.details.clone().unwrap_or_default(),
-                time_stamp: "now".to_string(),
+                time_stamp: now.to_string(),
                 duration: format_elapsed_time(start_time.elapsed()),
             };
 
@@ -133,13 +136,13 @@ fn main() -> Result<()> {
                 })
             })?;
 
-            for (index, task) in task_iter.enumerate() {
+            for task in task_iter {
                 let task = task.unwrap();
                 let formatted_task = format!(
-                    "Task Name: {}, id: {}, \n\tdetails: {}, \n\tcreated: {}, \n\tduration: {}",
-                    task.name, task.id, task.details, task.time_stamp, task.duration
+                    "TASK NAME: {},  \n\tDETAILS: {}, \n\tCREATED: {}, \n\tDURATION: {}",
+                    task.name, task.details, task.time_stamp, task.duration
                 );
-                println!("{}: {}", index, formatted_task);
+                println!("id:{}: {}", task.id, formatted_task);
             }
         }
     }
