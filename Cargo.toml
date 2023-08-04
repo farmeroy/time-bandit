@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.26"
 clap = { version = "4.3.19", features = ["derive"] }
+crossterm = "0.26.1"
+ratatui = "0.22.0"
 rusqlite = "0.29.0"
