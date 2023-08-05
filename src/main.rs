@@ -22,11 +22,15 @@ struct Task {
 
 fn format_elapsed_time(elapsed_time: Duration) -> String {
     let total_seconds = elapsed_time.as_secs();
-    let minutes = total_seconds / 60;
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
     let seconds = total_seconds % 60;
     let milliseconds = elapsed_time.subsec_millis();
 
-    format!("{:02}m:{:02}s.{:03}ms", minutes, seconds, milliseconds)
+    format!(
+        "{:02}h:{:02}m:{:02}s.{:03}ms",
+        hours, minutes, seconds, milliseconds
+    )
 }
 
 #[derive(Parser)]
