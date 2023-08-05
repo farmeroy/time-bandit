@@ -78,6 +78,11 @@ impl<T> StatefulList<T> {
     }
 }
 
+struct App<'a> {
+    items: StatefulList<(&'a str, usize)>,
+    events: Vec<(&'a str, &'a str)>,
+}
+
 fn format_elapsed_time(elapsed_time: Duration) -> String {
     let total_seconds = elapsed_time.as_secs();
     let minutes = total_seconds / 60;
