@@ -1,19 +1,5 @@
 use clap::{Args, Parser, Subcommand};
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
-    Frame, Terminal,
-};
-use std::{
-    error::Error,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 use std::{
     io::{self, Read, Write},
     sync::atomic::{AtomicBool, Ordering},
@@ -34,50 +20,6 @@ struct Task {
     duration: String,
 }
 
-struct StatefulList<T> {
-    state: ListState,
-    items: Vec<T>,
-}
-impl<T> StatefulList<T> {
-    fn with_item(items: Vec<T>) -> StatefulList<T> {
-        StatefulList {
-            state: ListState::default(),
-            items,
-        }
-    }
-    fn next(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    fn previous(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    fn unselect(&mut self) {
-        self.state.select(None);
-    }
-}
-
 fn format_elapsed_time(elapsed_time: Duration) -> String {
     let total_seconds = elapsed_time.as_secs();
     let hours = total_seconds / 3600;
@@ -89,58 +31,6 @@ fn format_elapsed_time(elapsed_time: Duration) -> String {
         "{:02}h:{:02}m:{:02}s.{:03}ms",
         hours, minutes, seconds, milliseconds
     )
-}
-
-fn ui<B: Backend>(f: &mut Frame<B>) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints(
-            [
-                Constraint::Percentage(10),
-                Constraint::Percentage(80),
-                Constraint::Percentage(10),
-            ]
-            .as_ref(),
-        )
-        .split(f.size());
-    let block = Block::default()
-        .title("Time Bandit")
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded);
-    f.render_widget(block, chunks[0]);
-    let conn = Connection::open("./my_db.db3").unwrap();
-    let mut stmt = conn
-        .prepare("SELECT id, name, details, time_stamp, duration FROM task")
-        .unwrap();
-    let mut items = Vec::new();
-    let task_iter = stmt
-        .query_map([], |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                details: row.get(2)?,
-                time_stamp: row.get(3)?,
-                duration: row.get(4)?,
-            })
-        })
-        .unwrap();
-    for task in task_iter {
-        let task = task.unwrap();
-        items.push(ListItem::new(task.name))
-    }
-    let task_list = List::new(items).block(
-        Block::default()
-            .title("Tasks")
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded),
-    );
-    f.render_widget(task_list, chunks[1]);
-    let block = Block::default()
-        .title("Task Details")
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded);
-    f.render_widget(block, chunks[2]);
 }
 
 #[derive(Parser)]
@@ -159,8 +49,6 @@ enum Commands {
     Start(StartArgs),
     /// List completed tasks
     List,
-    /// Use the Time Bandit TUI
-    Tui,
 }
 
 #[derive(Args)]
@@ -171,7 +59,7 @@ struct StartArgs {
     details: Option<String>,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
@@ -260,35 +148,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 );
                 println!("id:{}: {}", task.id, formatted_task);
             }
-        }
-        Commands::Tui => {
-            // setup terminal
-            enable_raw_mode()?;
-            let mut stdout = io::stdout();
-            execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-            let backend = CrosstermBackend::new(stdout);
-            let mut terminal = Terminal::new(backend)?;
-
-            terminal.draw(|f| {
-                ui(f);
-            })?;
-
-            // Start a thread to discard any input events. Without handling events, the
-            // stdin buffer will fill up, and be read into the shell when the program exits.
-            thread::spawn(|| loop {
-                event::read();
-            });
-
-            thread::sleep(Duration::from_millis(5000));
-
-            // restore terminal
-            disable_raw_mode()?;
-            execute!(
-                terminal.backend_mut(),
-                LeaveAlternateScreen,
-                DisableMouseCapture
-            )?;
-            terminal.show_cursor()?;
         }
     }
 
