@@ -78,9 +78,15 @@ impl<T> StatefulList<T> {
     }
 }
 
-struct App<'a> {
-    items: StatefulList<(&'a str, usize)>,
-    events: Vec<(&'a str, &'a str)>,
+struct App<T> {
+    items: StatefulList<T>,
+}
+impl<T> App<T> {
+    fn new(items: Vec<T>) -> App<T> {
+        App {
+            items: StatefulList::with_item(items),
+        }
+    }
 }
 
 fn format_elapsed_time(elapsed_time: Duration) -> String {
@@ -130,13 +136,14 @@ fn ui<B: Backend>(f: &mut Frame<B>) {
         let task = task.unwrap();
         items.push(ListItem::new(task.name))
     }
-    let task_list = List::new(items).block(
+    let task_list = List::new(items.clone()).block(
         Block::default()
             .title("Tasks")
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded),
     );
-    f.render_widget(task_list, chunks[1]);
+    let mut app = App::new(items);
+    f.render_stateful_widget(task_list, chunks[1], &mut app.items.state);
     let block = Block::default()
         .title("Task Details")
         .borders(Borders::ALL)
