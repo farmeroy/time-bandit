@@ -1,5 +1,8 @@
 use clap::{Args, Parser, Subcommand};
-use std::sync::{Arc, Mutex};
+use std::{
+    error::Error,
+    sync::{Arc, Mutex},
+};
 use std::{
     io::{self, Read, Write},
     sync::atomic::{AtomicBool, Ordering},
@@ -9,16 +12,11 @@ use std::{
 
 use chrono::Utc;
 
-use rusqlite::{Connection, Result};
+mod store;
+mod tui;
+mod types;
 
-#[derive(Debug)]
-struct Task {
-    id: i32,
-    name: String,
-    details: String,
-    time_stamp: String,
-    duration: String,
-}
+use types::types::Task;
 
 fn format_elapsed_time(elapsed_time: Duration) -> String {
     let total_seconds = elapsed_time.as_secs();
@@ -49,6 +47,7 @@ enum Commands {
     Start(StartArgs),
     /// List completed tasks
     List,
+    Tui,
 }
 
 #[derive(Args)]
@@ -59,25 +58,14 @@ struct StartArgs {
     details: Option<String>,
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
+    let store = store::Store::new("./my_db.db3")?;
     match &cli.command {
         Commands::Start(task) => {
             println!("task: {:?}", task.task);
             println!("details: {}", task.details.clone().unwrap_or_default());
-
-            let conn = Connection::open("./my_db.db3")?;
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS task (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            details TEXT,
-            time_stamp TEXT NOT NULL,
-            duration TEXT NOT NULL
-    )",
-                (),
-            )?;
             // capture the moment the task was begun
             let now = Utc::now();
             let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
@@ -117,31 +105,17 @@ fn main() -> Result<()> {
                 duration: format_elapsed_time(start_time.elapsed()),
             };
 
-            conn.execute(
-                "INSERT INTO task (name, details, time_stamp, duration) VALUES (?1, ?2, ?3, ?4)",
-                (&task.name, &task.details, &task.time_stamp, &task.duration),
-            )?;
+            store.add_task(task)?;
+
             println!(
                 "\rTask complete! Elapsed time: {:?}",
                 format_elapsed_time(start_time.elapsed())
             );
         }
         Commands::List => {
-            let conn = Connection::open("./my_db.db3")?;
-            let mut stmt =
-                conn.prepare("SELECT id, name, details, time_stamp, duration FROM task")?;
-            let task_iter = stmt.query_map([], |row| {
-                Ok(Task {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    details: row.get(2)?,
-                    time_stamp: row.get(3)?,
-                    duration: row.get(4)?,
-                })
-            })?;
-
+            let task_iter = store.get_tasks().unwrap();
             for task in task_iter {
-                let task = task.unwrap();
+                let task = task;
                 let formatted_task = format!(
                     "TASK NAME: {},  \n\tDETAILS: {}, \n\tCREATED: {}, \n\tDURATION: {}",
                     task.name, task.details, task.time_stamp, task.duration
@@ -149,6 +123,7 @@ fn main() -> Result<()> {
                 println!("id:{}: {}", task.id, formatted_task);
             }
         }
+        Commands::Tui => tui::run_app(store)?,
     }
 
     Ok(())
