@@ -120,7 +120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("id:{}: {}", task.id, formatted_task);
             }
         }
-        Commands::Tui => tui::run_app(&store)?,
+        Commands::Tui => tui::run_app(store)?,
     }
 
     Ok(())

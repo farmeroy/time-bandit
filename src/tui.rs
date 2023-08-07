@@ -108,7 +108,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, tasks: Vec<Task>) {
     f.render_widget(block, chunks[2]);
 }
 
-pub fn run_app(store: &Store) -> Result<(), Error> {
+pub fn run_app(store: Store) -> Result<(), Error> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
