@@ -6,6 +6,12 @@ pub struct Store {
     connection: Connection,
 }
 
+// create an event type
+// so that each task can have multiple events
+// id -> task id
+// duration
+// timestamp
+
 impl Store {
     pub fn new(db_url: &str) -> Result<Self> {
         let conn = Connection::open(db_url)?;
@@ -22,7 +28,7 @@ impl Store {
         Ok(Store { connection: conn })
     }
     pub fn add_task(self, task: Task) -> Result<(), rusqlite::Error> {
-        &self.connection.execute(
+        self.connection.execute(
             "INSERT INTO task (name, details, time_stamp, duration) VALUES (?1, ?2, ?3, ?4)",
             (&task.name, &task.details, &task.time_stamp, &task.duration),
         )?;
