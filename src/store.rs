@@ -41,18 +41,12 @@ fn create_event(
     stmt.execute(params![task_id, notes, now, duration])?;
     Ok(())
 }
-// create an event type
-// so that each task can have multiple events
-// id -> task id
-// duration
-// timestamp
 
 impl Store {
     pub fn new(db_url: &str) -> Result<Self> {
         let conn = Connection::open(db_url)?;
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS task (
-            id INTEGER PRIMARY KEY,
+            "CREATE TABLE IF NOT EXISTS task ( id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             details TEXT
     )",
