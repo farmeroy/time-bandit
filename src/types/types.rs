@@ -3,7 +3,7 @@ pub struct Task {
     pub id: i32,
     pub name: String,
     pub details: String,
-    pub events: Vec<Event>,
+    // pub events: Vec<Event>,
 }
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use crate::types::types::{Event, Task};
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, OptionalExtension, Result};
 
 #[derive(Debug)]
 pub struct Store {
@@ -38,27 +38,37 @@ impl Store {
         println!("Made the db");
         Ok(Store { connection: conn })
     }
-    pub fn add_task(&self, task: Task) -> Result<(), rusqlite::Error> {
-        let task_id: &i32 = &self
+    pub fn add_task(
+        self,
+        name: String,
+        details: String,
+        now: String,
+        duration: String,
+    ) -> Result<(), rusqlite::Error> {
+        let task_id: Result<Option<i32>> = self
             .connection
-            .query_row(
-                "SELECT id FROM task WHERE name = (?1)",
-                [&task.name],
-                |row| row.get(0),
-            )
-            .unwrap();
-        print!("\rtask id:{}", task_id);
+            .query_row("SELECT id FROM task WHERE name = (?1)", [&name], |row| {
+                row.get(0)
+            })
+            .optional();
 
-        // self.connection.execute(
-        //     "INSERT INTO event (task_id,notes,time_stamp,duration) VALUES (?1, ?2, ?3, ?4)",
-        //     (),
-        // )?;
+        match task_id.unwrap() {
+            Some(task_id) => {
+                self.connection.execute(
+                    "INSERT INTO event (task_id,notes,time_stamp,duration) VALUES (?1, ?2, ?3, ?4)",
+                    (task_id, details, now, duration),
+                )?;
+            }
+
+            None => println!("No task"),
+        }
+
         Ok(())
     }
     pub fn get_tasks(&self) -> Result<Vec<Task>> {
         let stmt = &mut self
             .connection
-            .prepare("SELECT id, name, details, FROM task")?;
+            .prepare("SELECT id, name, details FROM task")?;
         let task_iter = stmt.query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,

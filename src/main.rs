@@ -96,21 +96,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Wait for the loop thread to finish
             handle.join().expect("The loop thread panicked");
+            //might not need to make a task
+            // let task = Task {
+            //     id: 0,
+            //     name: task.task.to_string(),
+            //     details: task.details.clone().unwrap_or_default(),
+            //     // time_stamp: now.to_string(),
+            //     // duration: format_elapsed_time(start_time.elapsed()),
+            // };
 
-            let task = Task {
-                id: 0,
-                name: task.task.to_string(),
-                details: task.details.clone().unwrap_or_default(),
-                // time_stamp: now.to_string(),
-                // duration: format_elapsed_time(start_time.elapsed()),
-            };
+            store.add_task(
+                task.task.to_string(),
+                task.details.clone().unwrap_or_default(),
+                now.to_string(),
+                format_elapsed_time(start_time.elapsed()).to_string(),
+            )?;
 
-            store.add_task(task)?;
-
-            println!(
-                "\rTask complete! Elapsed time: {:?}",
-                format_elapsed_time(start_time.elapsed())
-            );
+            // println!(
+            //     "\rTask complete! Elapsed time: {:?}",
+            //     format_elapsed_time(start_time.elapsed())
+            // );
         }
         Commands::List => {
             let task_iter = store.get_tasks().unwrap();
@@ -118,7 +123,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let task = task;
                 let formatted_task = format!(
                     "TASK NAME: {}, 
-                    
                     ",
                     task.name,
                     // task.details, // task.time_stamp, task.duration
