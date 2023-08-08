@@ -1,4 +1,4 @@
-use crate::types::types::Task;
+use crate::types::types::{Event, Task};
 use rusqlite::{Connection, Result};
 
 #[derive(Debug)]
@@ -15,36 +15,57 @@ pub struct Store {
 impl Store {
     pub fn new(db_url: &str) -> Result<Self> {
         let conn = Connection::open(db_url)?;
+        print!("Before the task table");
         conn.execute(
             "CREATE TABLE IF NOT EXISTS task (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            details TEXT,
-            time_stamp TEXT NOT NULL,
-            duration TEXT NOT NULL
+            name TEXT NOT NULL
     )",
             (),
         )?;
+        println!("Made the task table");
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS event (
+                id INTEGER PRIMARY KEY,
+                task_id INTEGER,
+                notes TEXT,
+                time_stamp STRING,
+                duration STRING,
+                FOREIGN KEY(task_id) REFERENCES task(id)
+            )",
+            (),
+        )?;
+        println!("Made the db");
         Ok(Store { connection: conn })
     }
-    pub fn add_task(self, task: Task) -> Result<(), rusqlite::Error> {
-        self.connection.execute(
-            "INSERT INTO task (name, details, time_stamp, duration) VALUES (?1, ?2, ?3, ?4)",
-            (&task.name, &task.details, &task.time_stamp, &task.duration),
-        )?;
+    pub fn add_task(&self, task: Task) -> Result<(), rusqlite::Error> {
+        let task_id: &i32 = &self
+            .connection
+            .query_row(
+                "SELECT id FROM task WHERE name = (?1)",
+                [&task.name],
+                |row| row.get(0),
+            )
+            .unwrap();
+        print!("\rtask id:{}", task_id);
+
+        // self.connection.execute(
+        //     "INSERT INTO event (task_id,notes,time_stamp,duration) VALUES (?1, ?2, ?3, ?4)",
+        //     (),
+        // )?;
         Ok(())
     }
-    pub fn get_tasks(self) -> Result<Vec<Task>> {
+    pub fn get_tasks(&self) -> Result<Vec<Task>> {
         let stmt = &mut self
             .connection
-            .prepare("SELECT id, name, details, time_stamp, duration FROM task")?;
+            .prepare("SELECT id, name, details, FROM task")?;
         let task_iter = stmt.query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 details: row.get(2)?,
-                time_stamp: row.get(3)?,
-                duration: row.get(4)?,
+                // time_stamp: row.get(3)?,
+                // duration: row.get(4)?,
             })
         })?;
         let mut tasks = vec![];

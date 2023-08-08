@@ -101,8 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 id: 0,
                 name: task.task.to_string(),
                 details: task.details.clone().unwrap_or_default(),
-                time_stamp: now.to_string(),
-                duration: format_elapsed_time(start_time.elapsed()),
+                // time_stamp: now.to_string(),
+                // duration: format_elapsed_time(start_time.elapsed()),
             };
 
             store.add_task(task)?;
@@ -117,8 +117,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             for task in task_iter {
                 let task = task;
                 let formatted_task = format!(
-                    "TASK NAME: {},  \n\tDETAILS: {}, \n\tCREATED: {}, \n\tDURATION: {}",
-                    task.name, task.details, task.time_stamp, task.duration
+                    "TASK NAME: {}, 
+                    
+                    ",
+                    task.name,
+                    // task.details, // task.time_stamp, task.duration
                 );
                 println!("id:{}: {}", task.id, formatted_task);
             }
