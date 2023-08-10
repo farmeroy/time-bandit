@@ -48,6 +48,7 @@ enum Commands {
     /// List completed tasks
     List,
     Tui,
+    Events,
 }
 
 #[derive(Args)]
@@ -61,7 +62,7 @@ struct StartArgs {
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    let store = store::Store::new("./my_db.db3")?;
+    let store = store::Store::new("./new_db.db3")?;
     match &cli.command {
         Commands::Start(task) => {
             println!("task: {:?}", task.task);
@@ -112,10 +113,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 format_elapsed_time(start_time.elapsed()).to_string(),
             )?;
 
-            // println!(
-            //     "\rTask complete! Elapsed time: {:?}",
-            //     format_elapsed_time(start_time.elapsed())
-            // );
+            println!(
+                "\rTask complete! Elapsed time: {:?}",
+                format_elapsed_time(start_time.elapsed())
+            );
         }
         Commands::List => {
             let task_iter = store.get_tasks().unwrap();
@@ -131,6 +132,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         Commands::Tui => tui::run_app(store)?,
+        Commands::Events => {
+            let event_iter = store.get_events().unwrap();
+            for event in event_iter {
+                let event = event;
+                let formatted_event = format!(
+                    "Event: {}, task_id: {}, duration: {}",
+                    event.id, event.task_id, event.duration
+                );
+                println!("{}", formatted_event);
+            }
+        }
     }
 
     Ok(())
