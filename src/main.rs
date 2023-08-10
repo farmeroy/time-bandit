@@ -105,7 +105,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             //     // time_stamp: now.to_string(),
             //     // duration: format_elapsed_time(start_time.elapsed()),
             // };
-
+            // maybe break this into two calls to the store:
+            // get the id of the task name OR create it
+            // then create a new event with that id
             store.add_task(
                 task.task.to_string(),
                 task.details.clone().unwrap_or_default(),
@@ -124,9 +126,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let task = task;
                 let formatted_task = format!(
                     "TASK NAME: {}, 
+                    \ndetails: {:?},
+                    \nevents: {:?}
                     ",
                     task.name,
-                    // task.details, // task.time_stamp, task.duration
+                    task.details,
+                    task.events.unwrap()
                 );
                 println!("id:{}: {}", task.id, formatted_task);
             }
