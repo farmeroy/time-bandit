@@ -116,7 +116,7 @@ pub fn run_app(store: Store) -> Result<(), Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let tasks = store.get_tasks().unwrap();
+    let tasks = store.get_tasks_with_events().unwrap();
     terminal.draw(|f| {
         ui(f, tasks);
     })?;

@@ -74,7 +74,7 @@ impl Store {
         )?;
         Ok(Store { connection: conn })
     }
-    pub fn add_task(
+    pub fn add_task_event(
         &self,
         name: String,
         details: String,
@@ -89,7 +89,7 @@ impl Store {
         }
         Ok(())
     }
-    pub fn get_tasks(&self) -> Result<Vec<Task>> {
+    pub fn get_tasks_with_events(&self) -> Result<Vec<Task>> {
         let stmt = &mut self.connection.prepare(
             "
         SELECT
@@ -109,51 +109,44 @@ impl Store {
         )?;
 
         let mut rows = stmt.query([])?;
-
-        let mut tasks_map: HashMap<i32, (Task, Vec<Event>)> = HashMap::new();
+        let mut tasks_with_events: Vec<Task> = Vec::new();
+        let mut current_task: Option<Task> = None;
 
         while let Some(row) = rows.next()? {
             let task_id: i32 = row.get("task_id")?;
+            if let Some(task) = current_task.take() {
+                tasks_with_events.push(task);
+            }
+
             let task_name: String = row.get("task_name")?;
             let task_details: Option<String> = row.get("task_details")?;
             let event_id: Option<i32> = row.get("event_id")?;
-            let event_task_id: Option<i32> = row.get("event_task_id")?;
-            let event_notes: Option<String> = row.get("event_notes")?;
-            let event_time_stamp: Option<String> = row.get("event_time_stamp")?;
-            let event_duration: Option<String> = row.get("event_duration")?;
+            let mut events: Vec<Event> = Vec::new();
 
-            let task = Task {
+            if let Some(id) = event_id {
+                let event_task_id: i32 = row.get("event_task_id")?;
+                let event_notes: Option<String> = row.get("event_notes")?;
+                let event_time_stamp: String = row.get("event_time_stamp")?;
+                let event_duration: String = row.get("event_duration")?;
+
+                events.push(Event {
+                    id,
+                    task_id: event_task_id,
+                    notes: event_notes,
+                    time_stamp: event_time_stamp,
+                    duration: event_duration,
+                });
+            }
+            current_task = Some(Task {
                 id: task_id,
                 name: task_name,
                 details: task_details,
-                events: None, // We'll populate this shortly
-            };
-
-            let event = match event_id {
-                Some(id) => Event {
-                    id,
-                    task_id: event_task_id.unwrap(), // Safe unwrap since event_id is Some
-                    notes: event_notes,
-                    time_stamp: event_time_stamp.unwrap(), // Safe unwrap
-                    duration: event_duration.unwrap(),     // Safe unwrap
-                },
-                None => continue, // No event for this task
-            };
-
-            let entry = tasks_map.entry(task_id).or_insert((task, Vec::new()));
-            entry.1.push(event);
+                events: Some(events),
+            });
+            if let Some(task) = current_task.take() {
+                tasks_with_events.push(task);
+            }
         }
-
-        // Convert HashMap values into Vec<Task> with their associated events
-        let tasks_with_events: Vec<Task> = tasks_map
-            .values()
-            .map(|(task, events)| Task {
-                id: task.id,
-                name: task.name.clone(),
-                details: task.details.clone(),
-                events: Some(events.clone().to_vec()),
-            })
-            .collect();
 
         Ok(tasks_with_events)
     }

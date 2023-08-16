@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // maybe break this into two calls to the store:
             // get the id of the task name OR create it
             // then create a new event with that id
-            store.add_task(
+            store.add_task_event(
                 task.task.to_string(),
                 task.details.clone().unwrap_or_default(),
                 now.to_string(),
@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             );
         }
         Commands::List => {
-            let task_iter = store.get_tasks().unwrap();
+            let task_iter = store.get_tasks_with_events().unwrap();
             for task in task_iter {
                 let task = task;
                 let formatted_task = format!(
