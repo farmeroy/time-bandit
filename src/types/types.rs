@@ -14,3 +14,9 @@ pub struct Event {
     pub time_stamp: String,
     pub duration: String,
 }
+
+#[derive(Debug)]
+pub struct EventWithTaskName {
+    pub event: Event,
+    pub task_name: String,
+}

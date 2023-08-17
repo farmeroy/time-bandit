@@ -142,8 +142,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             for event in event_iter {
                 let event = event;
                 let formatted_event = format!(
-                    "Event: {}, task_id: {}, duration: {}",
-                    event.id, event.task_id, event.duration
+                    "timestamp: {}, task: {}, duration: {}",
+                    event.event.time_stamp, event.task_name, event.event.duration
                 );
                 println!("{}", formatted_event);
             }

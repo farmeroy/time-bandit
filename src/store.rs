@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::types::types::{Event, Task};
+use crate::types::types::{Event, EventWithTaskName, Task};
 use rusqlite::{params, Connection, OptionalExtension, Result};
 
 #[derive(Debug)]
@@ -74,6 +74,8 @@ impl Store {
         )?;
         Ok(Store { connection: conn })
     }
+    /// Add an event associated with a task,
+    /// creating a new task if it doesn't exist
     pub fn add_task_event(
         &self,
         name: String,
@@ -89,6 +91,7 @@ impl Store {
         }
         Ok(())
     }
+    /// Fetch all tasks together with their associated events
     pub fn get_tasks_with_events(&self) -> Result<Vec<Task>> {
         let stmt = &mut self.connection.prepare(
             "
@@ -150,17 +153,31 @@ impl Store {
 
         Ok(tasks_with_events)
     }
-    pub fn get_events(&self) -> Result<Vec<Event>> {
-        let stmt = &mut self
-            .connection
-            .prepare("SELECT id, task_id, notes, time_stamp, duration FROM event")?;
+    pub fn get_events(&self) -> Result<Vec<EventWithTaskName>> {
+        let stmt = &mut self.connection.prepare(
+            "SELECT 
+                event.id AS event_id,
+                event.task_id AS event_task_id,
+                event.notes AS event_notes,
+                event.time_stamp AS event_time_stamp,
+                event.duration AS event_duration,
+                task.name AS task_name
+                FROM 
+                    event
+                LEFT JOIN 
+                    task ON event.task_id = task.id
+            ",
+        )?;
         let event_iter = stmt.query_map([], |row| {
-            Ok(Event {
-                id: row.get(0)?,
-                task_id: row.get(1)?,
-                notes: row.get(2)?,
-                time_stamp: row.get(3)?,
-                duration: row.get(4)?,
+            Ok(EventWithTaskName {
+                event: Event {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    notes: row.get(2)?,
+                    time_stamp: row.get(3)?,
+                    duration: row.get(4)?,
+                },
+                task_name: row.get(5)?,
             })
         })?;
         let mut events = vec![];
