@@ -16,8 +16,6 @@ mod store;
 mod tui;
 mod types;
 
-use types::types::Task;
-
 fn format_elapsed_time(elapsed_time: Duration) -> String {
     let total_seconds = elapsed_time.as_secs();
     let hours = total_seconds / 3600;
