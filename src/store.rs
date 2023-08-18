@@ -91,6 +91,29 @@ impl Store {
         }
         Ok(())
     }
+    /// Fetch all tasks
+    pub fn get_tasks(&self) -> Result<Vec<Task>> {
+        let stmt = &mut self.connection.prepare(
+            "
+            SELECT * FROM task
+            ",
+        )?;
+
+        let task_iter = stmt.query_map([], |row| {
+            Ok(Task {
+                id: row.get("id")?,
+                name: row.get("name")?,
+                details: row.get("details")?,
+                events: None,
+            })
+        })?;
+        let mut tasks = vec![];
+        for task in task_iter {
+            let task = task.unwrap();
+            tasks.push(task)
+        }
+        Ok(tasks)
+    }
     /// Fetch all tasks together with their associated events
     pub fn get_tasks_with_events(&self) -> Result<Vec<Task>> {
         let stmt = &mut self.connection.prepare(

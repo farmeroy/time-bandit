@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::{
     error::Error,
     sync::{Arc, Mutex},
@@ -42,19 +42,33 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Start a new task
-    Start(StartArgs),
+    Task(TaskArgs),
     /// List completed tasks
     List,
     Tui,
     Events,
 }
 
-#[derive(Args)]
-struct StartArgs {
+#[derive(Parser)]
+struct TaskArgs {
     #[arg(long, short)]
-    task: String,
+    /// Name the task you want to work on
+    task: Option<String>,
     #[arg(long, short)]
+    /// Add task details
     details: Option<String>,
+    #[arg()]
+    /// The action to take
+    action: TaskAction,
+}
+
+#[derive(Parser, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum TaskAction {
+    #[arg()]
+    /// Start the task
+    Start,
+    /// List all tasks
+    List,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -62,61 +76,72 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let store = store::Store::new("./new_db.db3")?;
     match &cli.command {
-        Commands::Start(task) => {
-            println!("task: {:?}", task.task);
-            println!("details: {}", task.details.clone().unwrap_or_default());
-            // capture the moment the task was begun
-            let now = Utc::now();
-            let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
-            let should_terminate_thread = should_terminate.clone();
-
-            let start_time = Instant::now();
-            let handle = thread::spawn(move || loop {
-                thread::sleep(Duration::from_millis(1));
-                print!("\r{}", format_elapsed_time(start_time.elapsed()));
-                io::stdout().flush().unwrap();
-                if should_terminate_thread
-                    .lock()
-                    .unwrap()
-                    .load(std::sync::atomic::Ordering::Relaxed)
-                {
-                    break;
+        Commands::Task(task) => {
+            match &task.action {
+                TaskAction::List => {
+                    let task_iter = store.get_tasks().unwrap();
+                    for task in task_iter {
+                        let task = task;
+                        println!("Task: {}", task.name);
+                    }
                 }
-            });
-            // wait for the user to press Enter to terminate the loop
-            let mut buffer = [0u8; 1];
-            io::stdin().read(&mut buffer).expect("Failed to read line");
+                TaskAction::Start => {
+                    println!("task: {:?}", task.task.clone().unwrap());
+                    println!("details: {}", task.details.clone().unwrap_or_default());
+                    // capture the moment the task was begun
+                    let now = Utc::now();
+                    let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
+                    let should_terminate_thread = should_terminate.clone();
 
-            // Set the should_terminate flag to true to signal the loop to terminate
-            should_terminate
-                .lock()
-                .unwrap()
-                .store(true, Ordering::Relaxed);
+                    let start_time = Instant::now();
+                    let handle = thread::spawn(move || loop {
+                        thread::sleep(Duration::from_millis(1));
+                        print!("\r{}", format_elapsed_time(start_time.elapsed()));
+                        io::stdout().flush().unwrap();
+                        if should_terminate_thread
+                            .lock()
+                            .unwrap()
+                            .load(std::sync::atomic::Ordering::Relaxed)
+                        {
+                            break;
+                        }
+                    });
+                    // wait for the user to press Enter to terminate the loop
+                    let mut buffer = [0u8; 1];
+                    io::stdin().read(&mut buffer).expect("Failed to read line");
 
-            // Wait for the loop thread to finish
-            handle.join().expect("The loop thread panicked");
-            //might not need to make a task
-            // let task = Task {
-            //     id: 0,
-            //     name: task.task.to_string(),
-            //     details: task.details.clone().unwrap_or_default(),
-            //     // time_stamp: now.to_string(),
-            //     // duration: format_elapsed_time(start_time.elapsed()),
-            // };
-            // maybe break this into two calls to the store:
-            // get the id of the task name OR create it
-            // then create a new event with that id
-            store.add_task_event(
-                task.task.to_string(),
-                task.details.clone().unwrap_or_default(),
-                now.to_string(),
-                format_elapsed_time(start_time.elapsed()).to_string(),
-            )?;
+                    // Set the should_terminate flag to true to signal the loop to terminate
+                    should_terminate
+                        .lock()
+                        .unwrap()
+                        .store(true, Ordering::Relaxed);
 
-            println!(
-                "\rTask complete! Elapsed time: {:?}",
-                format_elapsed_time(start_time.elapsed())
-            );
+                    // Wait for the loop thread to finish
+                    handle.join().expect("The loop thread panicked");
+                    //might not need to make a task
+                    // let task = Task {
+                    //     id: 0,
+                    //     name: task.task.to_string(),
+                    //     details: task.details.clone().unwrap_or_default(),
+                    //     // time_stamp: now.to_string(),
+                    //     // duration: format_elapsed_time(start_time.elapsed()),
+                    // };
+                    // maybe break this into two calls to the store:
+                    // get the id of the task name OR create it
+                    // then create a new event with that id
+                    store.add_task_event(
+                        task.task.clone().unwrap().to_string(),
+                        task.details.clone().unwrap_or_default(),
+                        now.to_string(),
+                        format_elapsed_time(start_time.elapsed()).to_string(),
+                    )?;
+
+                    println!(
+                        "\rTask complete! Elapsed time: {:?}",
+                        format_elapsed_time(start_time.elapsed())
+                    );
+                }
+            }
         }
         Commands::List => {
             let task_iter = store.get_tasks_with_events().unwrap();

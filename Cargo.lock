@@ -560,6 +560,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tb"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "crossterm",
+ "ratatui",
+ "rusqlite",
+]
+
+[[package]]
 name = "time"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -568,17 +579,6 @@ dependencies = [
  "libc",
  "wasi 0.10.0+wasi-snapshot-preview1",
  "winapi",
-]
-
-[[package]]
-name = "time_bandit"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "crossterm",
- "ratatui",
- "rusqlite",
 ]
 
 [[package]]
