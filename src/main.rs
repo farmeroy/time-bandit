@@ -1,4 +1,6 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
+#![allow(dead_code)]
+
+use clap::{Parser, Subcommand, ValueEnum};
 use std::{
     error::Error,
     sync::{Arc, Mutex},

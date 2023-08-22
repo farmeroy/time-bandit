@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_must_use, unused_imports)]
 use crate::types::types::Task;
 use std::{io, thread, time::Duration};
 

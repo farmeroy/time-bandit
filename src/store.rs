@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use crate::types::types::{Event, EventWithTaskName, Task};
-use rusqlite::{params, Connection, OptionalExtension, Result};
+use rusqlite::{params, Connection, Result};
 
 #[derive(Debug)]
 pub struct Store {
