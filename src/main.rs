@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use std::{
     error::Error,
     sync::{Arc, Mutex},
@@ -43,8 +43,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start a new task
-    Task(TaskArgs),
+    /// Manage your various tasks
+    #[command(subcommand)]
+    Task(TaskAction),
     /// List completed tasks
     List,
     Tui,
@@ -52,25 +53,30 @@ enum Commands {
 }
 
 #[derive(Parser)]
-struct TaskArgs {
-    #[arg(long, short)]
+struct TaskStartArgs {
+    #[arg(index = 1)]
     /// Name the task you want to work on
-    task: Option<String>,
+    name: String,
     #[arg(long, short)]
     /// Add task details
     details: Option<String>,
-    #[arg()]
-    /// The action to take
-    action: TaskAction,
 }
 
-#[derive(Parser, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Parser)]
+struct TaskEventsArgs {
+    /// The name of the task
+    #[arg(index = 1)]
+    name: Option<String>,
+}
+
+#[derive(Subcommand)]
 enum TaskAction {
-    #[arg()]
     /// Start the task
-    Start,
+    Start(TaskStartArgs),
     /// List all tasks
     List,
+    /// List events associated with a task
+    Events(TaskEventsArgs),
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -78,8 +84,38 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let store = store::Store::new("./new_db.db3")?;
     match &cli.command {
-        Commands::Task(task) => {
-            match &task.action {
+        Commands::Task(action) => {
+            match &action {
+                TaskAction::Events(args) => {
+                    let task_name = args.name.clone();
+                    if let Some(task) = task_name {
+                        let events_iter = store.get_events_by_task(task).unwrap();
+                        println!("Task Name | Event ID | Time Stamp | Duration");
+                        for event in events_iter {
+                            let event = event;
+                            println!(
+                                "{} | {} | {} | {}",
+                                event.task_name,
+                                event.event.id,
+                                event.event.time_stamp,
+                                event.event.duration
+                            );
+                        }
+                    } else {
+                        let events_iter = store.get_events().unwrap();
+                        println!("Task Name | Event ID | Time Stamp | Duration");
+                        for event in events_iter {
+                            let event = event;
+                            println!(
+                                "{} | {} | {} | {}",
+                                event.task_name,
+                                event.event.id,
+                                event.event.time_stamp,
+                                event.event.duration
+                            );
+                        }
+                    }
+                }
                 TaskAction::List => {
                     let task_iter = store.get_tasks().unwrap();
                     for task in task_iter {
@@ -87,9 +123,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         println!("Task: {}", task.name);
                     }
                 }
-                TaskAction::Start => {
-                    println!("task: {:?}", task.task.clone().unwrap());
-                    println!("details: {}", task.details.clone().unwrap_or_default());
+                TaskAction::Start(args) => {
+                    println!("task: {:?}", args.name);
+                    println!("details: {}", args.details.clone().unwrap_or_default());
                     // capture the moment the task was begun
                     let now = Utc::now();
                     let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
@@ -120,20 +156,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     // Wait for the loop thread to finish
                     handle.join().expect("The loop thread panicked");
-                    //might not need to make a task
-                    // let task = Task {
-                    //     id: 0,
-                    //     name: task.task.to_string(),
-                    //     details: task.details.clone().unwrap_or_default(),
-                    //     // time_stamp: now.to_string(),
-                    //     // duration: format_elapsed_time(start_time.elapsed()),
-                    // };
-                    // maybe break this into two calls to the store:
-                    // get the id of the task name OR create it
-                    // then create a new event with that id
                     store.add_task_event(
-                        task.task.clone().unwrap().to_string(),
-                        task.details.clone().unwrap_or_default(),
+                        args.name.to_string(),
+                        args.details.clone().unwrap_or_default(),
                         now.to_string(),
                         format_elapsed_time(start_time.elapsed()).to_string(),
                     )?;
@@ -154,11 +179,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                     \ndetails: {:?},
                     \nevents: {:?}
                     ",
-                    task.name,
-                    task.details,
+                    task.task.name,
+                    task.task.details,
                     task.events.unwrap()
                 );
-                println!("id:{}: {}", task.id, formatted_task);
+                println!("id:{}: {}", task.task.id, formatted_task);
             }
         }
         Commands::Tui => tui::run_app(store)?,

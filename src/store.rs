@@ -1,4 +1,4 @@
-use crate::types::types::{Event, EventWithTaskName, Task};
+use crate::types::types::{Event, EventWithTaskName, Task, TaskWithEvents};
 use rusqlite::{params, Connection, Result};
 
 #[derive(Debug)]
@@ -23,7 +23,6 @@ fn create_task(conn: &Connection, task_name: &str, details: &str) -> Result<Task
         id: task_id,
         name: task_name.to_string(),
         details: Some(String::from("")),
-        events: None,
     };
 
     Ok(new_task)
@@ -102,7 +101,6 @@ impl Store {
                 id: row.get("id")?,
                 name: row.get("name")?,
                 details: row.get("details")?,
-                events: None,
             })
         })?;
         let mut tasks = vec![];
@@ -113,7 +111,7 @@ impl Store {
         Ok(tasks)
     }
     /// Fetch all tasks together with their associated events
-    pub fn get_tasks_with_events(&self) -> Result<Vec<Task>> {
+    pub fn get_tasks_with_events(&self) -> Result<Vec<TaskWithEvents>> {
         let stmt = &mut self.connection.prepare(
             "
         SELECT
@@ -133,8 +131,8 @@ impl Store {
         )?;
 
         let mut rows = stmt.query([])?;
-        let mut tasks_with_events: Vec<Task> = Vec::new();
-        let mut current_task: Option<Task> = None;
+        let mut tasks_with_events: Vec<TaskWithEvents> = Vec::new();
+        let mut current_task: Option<TaskWithEvents> = None;
 
         while let Some(row) = rows.next()? {
             let task_id: i32 = row.get("task_id")?;
@@ -161,10 +159,12 @@ impl Store {
                     duration: event_duration,
                 });
             }
-            current_task = Some(Task {
-                id: task_id,
-                name: task_name,
-                details: task_details,
+            current_task = Some(TaskWithEvents {
+                task: Task {
+                    id: task_id,
+                    name: task_name,
+                    details: task_details,
+                },
                 events: Some(events),
             });
             if let Some(task) = current_task.take() {
@@ -174,6 +174,42 @@ impl Store {
 
         Ok(tasks_with_events)
     }
+    pub fn get_events_by_task(&self, task_name: String) -> Result<Vec<EventWithTaskName>> {
+        let stmt = &mut self.connection.prepare(
+            "SELECT 
+                event.id AS event_id,
+                event.task_id AS event_task_id,
+                event.notes AS event_notes,
+                event.time_stamp AS event_time_stamp,
+                event.duration AS event_duration,
+                task.name AS task_name
+                FROM 
+                    event
+                LEFT JOIN 
+                    task ON event.task_id = task.id
+                    WHERE task.name = $1
+            ",
+        )?;
+        let event_iter = stmt.query_map([task_name], |row| {
+            Ok(EventWithTaskName {
+                event: Event {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    notes: row.get(2)?,
+                    time_stamp: row.get(3)?,
+                    duration: row.get(4)?,
+                },
+                task_name: row.get(5)?,
+            })
+        })?;
+        let mut events = vec![];
+        for event in event_iter {
+            let event = event.unwrap();
+            events.push(event)
+        }
+        Ok(events)
+    }
+    /// get all the events
     pub fn get_events(&self) -> Result<Vec<EventWithTaskName>> {
         let stmt = &mut self.connection.prepare(
             "SELECT 

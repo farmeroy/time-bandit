@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_must_use, unused_imports)]
-use crate::types::types::Task;
+use crate::types::types::TaskWithEvents;
 use std::{io, thread, time::Duration};
 
 use clap::Error;
@@ -72,7 +72,7 @@ impl<T> App<T> {
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, tasks: Vec<Task>) {
+fn ui<B: Backend>(f: &mut Frame<B>, tasks: Vec<TaskWithEvents>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
@@ -92,7 +92,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, tasks: Vec<Task>) {
     f.render_widget(block, chunks[0]);
     let mut items = Vec::new();
     for task in tasks {
-        items.push(ListItem::new(task.name))
+        items.push(ListItem::new(task.task.name))
     }
     let task_list = List::new(items.clone()).block(
         Block::default()

@@ -1,9 +1,14 @@
 #[derive(Debug)]
+pub struct TaskWithEvents {
+    pub task: Task,
+    pub events: Option<Vec<Event>>,
+}
+
+#[derive(Debug)]
 pub struct Task {
     pub id: i32,
     pub name: String,
     pub details: Option<String>,
-    pub events: Option<Vec<Event>>,
 }
 
 #[derive(Debug, Clone)]
