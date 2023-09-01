@@ -17,7 +17,7 @@ pub struct Event {
     pub task_id: i32,
     pub notes: Option<String>,
     pub time_stamp: String,
-    pub duration: String,
+    pub duration: i32,
 }
 
 #[derive(Debug)]

@@ -14,21 +14,18 @@ use std::{
 
 use chrono::Utc;
 
+use crate::types::types::EventWithTaskName;
+
 mod store;
 mod tui;
 mod types;
 
-fn format_elapsed_time(elapsed_time: Duration) -> String {
-    let total_seconds = elapsed_time.as_secs();
+fn format_elapsed_time(total_seconds: u64) -> String {
     let hours = total_seconds / 3600;
     let minutes = (total_seconds % 3600) / 60;
     let seconds = total_seconds % 60;
-    let milliseconds = elapsed_time.subsec_millis();
 
-    format!(
-        "{:02}h:{:02}m:{:02}s.{:03}ms",
-        hours, minutes, seconds, milliseconds
-    )
+    format!("{:02}h:{:02}m:{:02}s", hours, minutes, seconds)
 }
 
 #[derive(Parser)]
@@ -88,32 +85,23 @@ fn main() -> Result<(), Box<dyn Error>> {
             match &action {
                 TaskAction::Events(args) => {
                     let task_name = args.name.clone();
+                    let events_iter: Vec<EventWithTaskName>;
+                    println!("Task Name | Event ID | Time Stamp | Duration | Notes");
                     if let Some(task) = task_name {
-                        let events_iter = store.get_events_by_task(task).unwrap();
-                        println!("Task Name | Event ID | Time Stamp | Duration");
-                        for event in events_iter {
-                            let event = event;
-                            println!(
-                                "{} | {} | {} | {}",
-                                event.task_name,
-                                event.event.id,
-                                event.event.time_stamp,
-                                event.event.duration
-                            );
-                        }
+                        events_iter = store.get_events_by_task(task)?;
                     } else {
-                        let events_iter = store.get_events().unwrap();
-                        println!("Task Name | Event ID | Time Stamp | Duration");
-                        for event in events_iter {
-                            let event = event;
-                            println!(
-                                "{} | {} | {} | {}",
-                                event.task_name,
-                                event.event.id,
-                                event.event.time_stamp,
-                                event.event.duration
-                            );
-                        }
+                        events_iter = store.get_events().unwrap();
+                    }
+                    for event in events_iter {
+                        let event = event;
+                        println!(
+                            "{} | {} | {} | {} | {}",
+                            event.task_name,
+                            event.event.id,
+                            event.event.time_stamp,
+                            format_elapsed_time(event.event.duration.try_into()?),
+                            event.event.notes.unwrap_or_default()
+                        );
                     }
                 }
                 TaskAction::List => {
@@ -134,7 +122,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let start_time = Instant::now();
                     let handle = thread::spawn(move || loop {
                         thread::sleep(Duration::from_millis(1));
-                        print!("\r{}", format_elapsed_time(start_time.elapsed()));
+                        print!("\r{}", format_elapsed_time(start_time.elapsed().as_secs()));
                         io::stdout().flush().unwrap();
                         if should_terminate_thread
                             .lock()
@@ -160,12 +148,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                         args.name.to_string(),
                         args.details.clone().unwrap_or_default(),
                         now.to_string(),
-                        format_elapsed_time(start_time.elapsed()).to_string(),
+                        start_time.elapsed().as_secs().try_into()?,
                     )?;
 
                     println!(
                         "\rTask complete! Elapsed time: {:?}",
-                        format_elapsed_time(start_time.elapsed())
+                        format_elapsed_time(start_time.elapsed().as_secs())
                     );
                 }
             }
@@ -193,7 +181,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let event = event;
                 let formatted_event = format!(
                     "timestamp: {}, task: {}, duration: {}",
-                    event.event.time_stamp, event.task_name, event.event.duration
+                    event.event.time_stamp,
+                    event.task_name,
+                    format_elapsed_time(event.event.duration.try_into()?)
                 );
                 println!("{}", formatted_event);
             }

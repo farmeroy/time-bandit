@@ -33,7 +33,7 @@ fn create_event(
     task_id: &i32,
     notes: &str,
     now: &str,
-    duration: &str,
+    duration: &u64,
 ) -> Result<()> {
     let mut stmt = conn.prepare(
         "INSERT INTO event (task_id, notes, time_stamp, duration) VALUES (?1, ?2, ?3, ?4) ",
@@ -64,7 +64,7 @@ impl Store {
                 task_id INTEGER,
                 notes TEXT,
                 time_stamp STRING,
-                duration STRING,
+                duration INTEGER,
                 FOREIGN KEY(task_id) REFERENCES task(id)
             )",
             (),
@@ -78,7 +78,7 @@ impl Store {
         name: String,
         details: String,
         now: String,
-        duration: String,
+        duration: u64,
     ) -> Result<(), rusqlite::Error> {
         if let Some(task_id) = get_task_id_by_name(&self.connection, &name)? {
             create_event(&self.connection, &task_id, &details, &now, &duration)?;
@@ -149,7 +149,7 @@ impl Store {
                 let event_task_id: i32 = row.get("event_task_id")?;
                 let event_notes: Option<String> = row.get("event_notes")?;
                 let event_time_stamp: String = row.get("event_time_stamp")?;
-                let event_duration: String = row.get("event_duration")?;
+                let event_duration: i32 = row.get("event_duration")?;
 
                 events.push(Event {
                     id,
