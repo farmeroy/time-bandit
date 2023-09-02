@@ -244,4 +244,19 @@ impl Store {
         }
         Ok(events)
     }
+    pub fn get_time_spent_by_task(&self, task_id: i32) -> Result<i32> {
+        let stmt = &mut self.connection.prepare(
+            "SELECT 
+            SUM(duration)
+            FROM
+            event
+            WHERE event.task_id= $1",
+        )?;
+        let mut rows = stmt.query([task_id])?;
+        let mut time_spent = 0;
+        while let Some(row) = rows.next()? {
+            time_spent = row.get(0)?;
+        }
+        Ok(time_spent)
+    }
 }

@@ -17,7 +17,6 @@ use chrono::Utc;
 use crate::types::types::EventWithTaskName;
 
 mod store;
-mod tui;
 mod types;
 
 fn format_elapsed_time(total_seconds: u64) -> String {
@@ -43,10 +42,8 @@ enum Commands {
     /// Manage your various tasks
     #[command(subcommand)]
     Task(TaskAction),
-    /// List completed tasks
-    List,
-    Tui,
-    Events,
+    /// View the time stolen from you
+    Events(EventsArgs),
 }
 
 #[derive(Parser)]
@@ -60,7 +57,7 @@ struct TaskStartArgs {
 }
 
 #[derive(Parser)]
-struct TaskEventsArgs {
+struct EventsArgs {
     /// The name of the task
     #[arg(index = 1)]
     name: Option<String>,
@@ -72,8 +69,6 @@ enum TaskAction {
     Start(TaskStartArgs),
     /// List all tasks
     List,
-    /// List events associated with a task
-    Events(TaskEventsArgs),
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -83,32 +78,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     match &cli.command {
         Commands::Task(action) => {
             match &action {
-                TaskAction::Events(args) => {
-                    let task_name = args.name.clone();
-                    let events_iter: Vec<EventWithTaskName>;
-                    println!("Task Name | Event ID | Time Stamp | Duration | Notes");
-                    if let Some(task) = task_name {
-                        events_iter = store.get_events_by_task(task)?;
-                    } else {
-                        events_iter = store.get_events().unwrap();
-                    }
-                    for event in events_iter {
-                        let event = event;
-                        println!(
-                            "{} | {} | {} | {} | {}",
-                            event.task_name,
-                            event.event.id,
-                            event.event.time_stamp,
-                            format_elapsed_time(event.event.duration.try_into()?),
-                            event.event.notes.unwrap_or_default()
-                        );
-                    }
-                }
                 TaskAction::List => {
                     let task_iter = store.get_tasks().unwrap();
+                    println!("Task Name | Total Time Spent");
                     for task in task_iter {
                         let task = task;
-                        println!("Task: {}", task.name);
+                        let time_spent = store.get_time_spent_by_task(task.id).unwrap();
+                        println!(
+                            "{} | {}",
+                            task.name,
+                            format_elapsed_time(time_spent.try_into()?)
+                        );
                     }
                 }
                 TaskAction::Start(args) => {
@@ -158,35 +138,35 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
-        Commands::List => {
-            let task_iter = store.get_tasks_with_events().unwrap();
-            for task in task_iter {
-                let task = task;
-                let formatted_task = format!(
-                    "TASK NAME: {}, 
-                    \ndetails: {:?},
-                    \nevents: {:?}
-                    ",
-                    task.task.name,
-                    task.task.details,
-                    task.events.unwrap()
-                );
-                println!("id:{}: {}", task.task.id, formatted_task);
+        Commands::Events(args) => {
+            let task_name = args.name.clone();
+            let events_iter: Vec<EventWithTaskName>;
+            println!("Task Name | Event ID | Time Stamp | Duration | Notes");
+            if let Some(task) = task_name {
+                events_iter = store.get_events_by_task(task)?;
+            } else {
+                events_iter = store.get_events().unwrap();
             }
-        }
-        Commands::Tui => tui::run_app(store)?,
-        Commands::Events => {
-            let event_iter = store.get_events().unwrap();
-            for event in event_iter {
+            let mut time_spent = 0;
+            let mut total_events = 0;
+            for event in events_iter {
                 let event = event;
-                let formatted_event = format!(
-                    "timestamp: {}, task: {}, duration: {}",
-                    event.event.time_stamp,
+                time_spent += event.event.duration;
+                total_events += 1;
+                println!(
+                    "{} | {} | {} | {} | {}",
                     event.task_name,
-                    format_elapsed_time(event.event.duration.try_into()?)
+                    event.event.id,
+                    event.event.time_stamp,
+                    format_elapsed_time(event.event.duration.try_into()?),
+                    event.event.notes.unwrap_or_default()
                 );
-                println!("{}", formatted_event);
             }
+            println!(
+                "Total time spent: {}\nTotal Events: {}",
+                format_elapsed_time(time_spent as u64),
+                total_events
+            );
         }
     }
 
