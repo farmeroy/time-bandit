@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
 use clap::{Parser, Subcommand};
+#[macro_use]
+extern crate prettytable;
+use prettytable::{format, Table};
 use std::{
     error::Error,
     sync::{Arc, Mutex},
@@ -12,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::Utc;
+use chrono::{DateTime, Local};
 
 use crate::types::types::EventWithTaskName;
 
@@ -58,8 +61,8 @@ struct TaskStartArgs {
 
 #[derive(Parser)]
 struct EventsArgs {
-    /// The name of the task
     #[arg(index = 1)]
+    /// Enter the name of task who's events you would like to view
     name: Option<String>,
 }
 
@@ -80,22 +83,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             match &action {
                 TaskAction::List => {
                     let task_iter = store.get_tasks().unwrap();
-                    println!("Task Name | Total Time Spent");
+                    let mut table = Table::new();
+                    table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+                    table.set_titles(row!["Task Name", "Total Time Spent"]);
                     for task in task_iter {
                         let task = task;
                         let time_spent = store.get_time_spent_by_task(task.id).unwrap();
-                        println!(
-                            "{} | {}",
-                            task.name,
-                            format_elapsed_time(time_spent.try_into()?)
-                        );
+
+                        table.add_row(row![task.name, format_elapsed_time(time_spent.try_into()?)]);
                     }
+                    table.printstd();
                 }
                 TaskAction::Start(args) => {
-                    println!("task: {:?}", args.name);
+                    println!("task: {}", args.name);
                     println!("details: {}", args.details.clone().unwrap_or_default());
                     // capture the moment the task was begun
-                    let now = Utc::now();
+                    let now = Local::now();
                     let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
                     let should_terminate_thread = should_terminate.clone();
 
@@ -141,7 +144,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Events(args) => {
             let task_name = args.name.clone();
             let events_iter: Vec<EventWithTaskName>;
-            println!("Task Name | Event ID | Time Stamp | Duration | Notes");
+            let mut table = Table::new();
+            table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+            table.set_titles(row!["ID", "Task Name", "Time Stamp", "Duration", "Notes"]);
             if let Some(task) = task_name {
                 events_iter = store.get_events_by_task(task)?;
             } else {
@@ -153,15 +158,20 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let event = event;
                 time_spent += event.event.duration;
                 total_events += 1;
-                println!(
-                    "{} | {} | {} | {} | {}",
-                    event.task_name,
+
+                table.add_row(row![
                     event.event.id,
-                    event.event.time_stamp,
+                    event.task_name,
+                    event
+                        .event
+                        .time_stamp
+                        .parse::<DateTime<Local>>()?
+                        .format("%Y-%m-%d %H:%M"),
                     format_elapsed_time(event.event.duration.try_into()?),
-                    event.event.notes.unwrap_or_default()
-                );
+                    event.event.notes.unwrap_or_default(),
+                ]);
             }
+            table.printstd();
             println!(
                 "Total time spent: {}\nTotal Events: {}",
                 format_elapsed_time(time_spent as u64),

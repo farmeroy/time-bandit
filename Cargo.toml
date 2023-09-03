@@ -10,3 +10,4 @@ chrono = "0.4.26"
 clap = { version = "4.3.19", features = ["derive"] }
 crossterm = "0.26.1"
 rusqlite = "0.29.0"
+prettytable-rs = "^0.10"
