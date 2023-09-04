@@ -15,6 +15,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use dirs::home_dir;
+
 use chrono::{DateTime, Local};
 
 use crate::types::types::EventWithTaskName;
@@ -45,7 +47,7 @@ enum Commands {
     /// Manage your various tasks
     #[command(subcommand)]
     Task(TaskAction),
-    /// View the time stolen from you
+    /// View events associated with tasks
     Events(EventsArgs),
 }
 
@@ -55,7 +57,9 @@ struct TaskStartArgs {
     /// Name the task you want to work on
     name: String,
     #[arg(long, short)]
-    /// Add task details
+    /// Add task details. The first time you start a task,
+    /// the task details will be associated with the task itself.
+    /// After that, task details will be notes for individual events.
     details: Option<String>,
 }
 
@@ -76,8 +80,9 @@ enum TaskAction {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-
-    let store = store::Store::new("./new_db.db3")?;
+    let home_dir = home_dir().unwrap();
+    let store =
+        store::Store::new(format!("{}/.time_bandit.db3", home_dir.to_string_lossy()).as_str())?;
     match &cli.command {
         Commands::Task(action) => {
             match &action {
@@ -95,8 +100,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     table.printstd();
                 }
                 TaskAction::Start(args) => {
-                    println!("task: {}", args.name);
-                    println!("details: {}", args.details.clone().unwrap_or_default());
+                    println!("Task: {}", args.name);
+                    println!("Details: {}", args.details.clone().unwrap_or_default());
                     // capture the moment the task was begun
                     let now = Local::now();
                     let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
@@ -104,8 +109,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     let start_time = Instant::now();
                     let handle = thread::spawn(move || loop {
-                        thread::sleep(Duration::from_millis(1));
+                        thread::sleep(Duration::from_secs(1));
                         print!("\r{}", format_elapsed_time(start_time.elapsed().as_secs()));
+
                         io::stdout().flush().unwrap();
                         if should_terminate_thread
                             .lock()
@@ -115,6 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             break;
                         }
                     });
+                    println!("Press Enter to stop");
                     // wait for the user to press Enter to terminate the loop
                     let mut buffer = [0u8; 1];
                     io::stdin().read(&mut buffer).expect("Failed to read line");

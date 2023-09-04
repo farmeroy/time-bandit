@@ -1,5 +1,5 @@
 [package]
-name = "tb"
+name = "time_bandit"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,3 +11,4 @@ clap = { version = "4.3.19", features = ["derive"] }
 crossterm = "0.26.1"
 rusqlite = "0.29.0"
 prettytable-rs = "^0.10"
+dirs = "5.0"

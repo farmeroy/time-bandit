@@ -2,6 +2,7 @@
 
 This is a command line time management app that allows you to create `tasks` and work on task `events`. 
 
+
 You can then view how much time you've spent total on each task,
 as well as view all of the events associated with each task,
 including the duration of each event as well as when the event occurred. 
