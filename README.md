@@ -8,6 +8,8 @@ You can then view how much time you've spent total on each task,
 as well as view all of the events associated with each task,
 including the duration of each event as well as when the event occurred. 
 
+The first time you run the app, an sqlite database will be created at `~/.time_bandit.db3`
+
 Example usage: 
 
 `$ tb task start <name of task> -details 'optional description of the task'`
