@@ -2,6 +2,7 @@
 
 This is a command line time management app that allows you to create `tasks` and work on task `events`. 
 
+This can be installed from crates.io `cargo install time_bandit`
 
 You can then view how much time you've spent total on each task,
 as well as view all of the events associated with each task,
@@ -23,4 +24,5 @@ This will list all your tasks along with how much time you have spent on each.
 `$ tb events <optional task name>`
 
 This will list all your events along with their associated task, time stamp, duration of the event, and any details about the event.
+
 
