@@ -109,7 +109,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     let start_time = Instant::now();
                     let handle = thread::spawn(move || loop {
-                        thread::sleep(Duration::from_secs(1));
                         print!("\r{}", format_elapsed_time(start_time.elapsed().as_secs()));
 
                         io::stdout().flush().unwrap();
@@ -120,6 +119,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         {
                             break;
                         }
+                        thread::sleep(Duration::from_millis(250));
                     });
                     println!("Press Enter to stop");
                     // wait for the user to press Enter to terminate the loop
