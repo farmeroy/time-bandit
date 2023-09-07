@@ -740,7 +740,7 @@ dependencies = [
 
 [[package]]
 name = "time_bandit"
-version = "0.1.0"
+version = "0.1.11"
 dependencies = [
  "chrono",
  "clap",
