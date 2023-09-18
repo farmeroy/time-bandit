@@ -16,7 +16,7 @@ Example usage:
 
 This will start a new task *or* pickup where an old task has left off.
 
-If it is a new task, the details with be a description of the task itself,
+If it is a new task, the details will be a description of the task itself,
 for subsequent events `-details` will add notes to the individual events.
 
 `$ tb task list`
