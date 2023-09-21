@@ -22,6 +22,7 @@ use chrono::{DateTime, Local};
 use crate::types::types::EventWithTaskName;
 
 mod store;
+mod tui;
 mod types;
 
 fn format_elapsed_time(total_seconds: u64) -> String {
