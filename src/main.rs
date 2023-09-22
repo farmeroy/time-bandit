@@ -50,6 +50,7 @@ enum Commands {
     Task(TaskAction),
     /// View events associated with tasks
     Events(EventsArgs),
+    Tui,
 }
 
 #[derive(Parser)]
@@ -186,6 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 total_events
             );
         }
+        Commands::Tui => tui::run_app(store)?,
     }
 
     Ok(())

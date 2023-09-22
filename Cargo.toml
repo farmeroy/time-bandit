@@ -14,3 +14,4 @@ crossterm = "0.26.1"
 rusqlite = "0.29.0"
 prettytable-rs = "^0.10"
 dirs = "5.0"
+ratatui = { version = "0.23.0", features = ["all-widgets"] }
