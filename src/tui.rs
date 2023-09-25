@@ -14,7 +14,7 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     text::Line,
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
     Frame, Terminal,
 };
 
@@ -75,15 +75,15 @@ impl<T> App<T> {
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>) {
+fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints(
             [
                 Constraint::Percentage(10),
-                Constraint::Percentage(80),
-                Constraint::Percentage(10),
+                Constraint::Percentage(45),
+                Constraint::Percentage(45),
             ]
             .as_ref(),
         )
@@ -102,11 +102,18 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>) {
         )
         .highlight_symbol(">> ");
     f.render_stateful_widget(task_list, chunks[1], &mut app.items.state);
-    let block = Block::default()
-        .title("Task Details")
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded);
-    f.render_widget(block, chunks[2]);
+    let selected_task_index = app.items.state.selected().unwrap_or_default();
+    let selected_task_name = app.items.items[selected_task_index].clone();
+
+    let text = Line::from(format!("{:?}", selected_task_name));
+
+    let events = Paragraph::new(text).block(
+        Block::default()
+            .title("Task Details")
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded),
+    );
+    f.render_widget(events, chunks[2]);
 }
 
 pub fn run_app(store: Store) -> Result<(), Error> {
@@ -129,7 +136,7 @@ pub fn run_app(store: Store) -> Result<(), Error> {
     // stdin buffer will fill up, and be read into the shell when the program exits.
     loop {
         terminal.draw(|f| {
-            ui(f, &mut app);
+            ui(f, &mut app, &store);
         })?;
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
