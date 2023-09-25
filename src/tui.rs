@@ -1,9 +1,10 @@
-use crate::types::types::Task;
+use crate::{format_elapsed_time, types::types::Task};
 use std::{
     io,
     time::{Duration, Instant},
 };
 
+use chrono::{DateTime, Local};
 use clap::Error;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
@@ -13,8 +14,9 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
+    style::Style,
     text::Line,
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Row, Table},
     Frame, Terminal,
 };
 
@@ -66,11 +68,15 @@ impl<T> StatefulList<T> {
 
 struct App<T> {
     items: StatefulList<T>,
+    tasks: Vec<Task>,
+    events: Option<Vec<Event>>,
 }
 impl<T> App<T> {
-    fn new(items: Vec<T>) -> App<T> {
+    fn new(items: Vec<T>, tasks: Vec<Task>) -> App<T> {
         App {
             items: StatefulList::with_item(items),
+            tasks,
+            events: None,
         }
     }
 }
@@ -102,27 +108,49 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
         )
         .highlight_symbol(">> ");
     f.render_stateful_widget(task_list, chunks[1], &mut app.items.state);
+
     let selected_task_index = app.items.state.selected().unwrap_or_default();
-    let selected_task_name = app.items.items[selected_task_index].clone();
+    let selected_task_name = app.tasks[selected_task_index].name.clone();
+    let events = store.get_events_by_task(selected_task_name);
 
-    let text = Line::from(format!("{:?}", selected_task_name));
+    let events = events.unwrap();
+    let rows = events.into_iter().map(|event| {
+        Row::new(vec![
+            format_elapsed_time(event.event.duration as u64),
+            event
+                .event
+                .time_stamp
+                .parse::<DateTime<Local>>()
+                .unwrap_or_default()
+                .format("%Y-%m-%d %H:%M")
+                .to_string(),
+            event.event.notes.unwrap_or_default(),
+        ])
+    });
 
-    let events = Paragraph::new(text).block(
-        Block::default()
-            .title("Task Details")
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded),
-    );
-    f.render_widget(events, chunks[2]);
+    let events_table = Table::new(rows)
+        .header(Row::new(vec!["duration", "time stamp", "notes"]))
+        .block(
+            Block::default()
+                .title("Task Details")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded),
+        )
+        .widths(&[
+            Constraint::Max(15),
+            Constraint::Max(35),
+            Constraint::Percentage(50),
+        ]);
+    f.render_widget(events_table, chunks[2]);
 }
 
 pub fn run_app(store: Store) -> Result<(), Error> {
     let tasks = store.get_tasks().unwrap();
     let mut items = Vec::new();
-    for task in tasks {
+    for task in &tasks {
         items.push(ListItem::new(task.name.clone()))
     }
-    let mut app = App::new(items);
+    let mut app = App::new(items, tasks);
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
