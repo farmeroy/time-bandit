@@ -1,6 +1,11 @@
 use crate::{format_elapsed_time, types::types::Task};
 use std::{
     io,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    thread,
     time::{Duration, Instant},
 };
 
@@ -15,8 +20,11 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::Style,
+    symbols::{self, block},
     text::Line,
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Row, Table},
+    widgets::{
+        Block, BorderType, Borders, Dataset, List, ListItem, ListState, Paragraph, Row, Table,
+    },
     Frame, Terminal,
 };
 
@@ -69,7 +77,8 @@ impl<T> StatefulList<T> {
 struct App<T> {
     items: StatefulList<T>,
     tasks: Vec<Task>,
-    events: Option<Vec<Event>>,
+    events: Option<Vec<Event>>, // this is not currently used
+    timer: Timer,
 }
 impl<T> App<T> {
     fn new(items: Vec<T>, tasks: Vec<Task>) -> App<T> {
@@ -77,11 +86,58 @@ impl<T> App<T> {
             items: StatefulList::with_item(items),
             tasks,
             events: None,
+            timer: Timer::new(),
         }
     }
 }
 
+#[derive(Debug)]
+struct Timer {
+    is_on: Arc<AtomicBool>,
+    start_time: Option<DateTime<Local>>,
+    elapsed_time: Arc<Mutex<Option<u64>>>,
+    thread_handle: Option<thread::JoinHandle<()>>,
+}
+
+impl Timer {
+    fn new() -> Timer {
+        Timer {
+            is_on: Arc::new(AtomicBool::new(false)),
+            start_time: None,
+            elapsed_time: Arc::new(Mutex::new(None)),
+            thread_handle: None,
+        }
+    }
+    fn start(&mut self) {
+        self.start_time = Some(Local::now());
+        self.is_on.store(true, Ordering::Relaxed);
+        let is_on = Arc::clone(&self.is_on);
+        let elapsed_time = Arc::clone(&self.elapsed_time);
+        let start_time = Instant::now();
+        let thread_handle = thread::spawn(move || loop {
+            let mut elapsed_time = elapsed_time.lock().unwrap();
+            *elapsed_time = Some(start_time.elapsed().as_secs());
+            if !is_on.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+        });
+        self.thread_handle = Some(thread_handle);
+    }
+    fn stop(&mut self) {
+        self.is_on.store(false, Ordering::Relaxed);
+        if let Some(thread_handle) = self.thread_handle.take() {
+            thread_handle.join().unwrap();
+        }
+    }
+    fn clear(&mut self) {
+        self.start_time = None;
+        self.elapsed_time.lock().unwrap().take();
+    }
+}
+
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
+    let selected_task_index = app.items.state.selected().unwrap_or_default();
+    let selected_task_name = app.tasks[selected_task_index].name.clone();
     let vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
@@ -98,11 +154,25 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Max(30), Constraint::Percentage(60)].as_ref())
         .split(vertical_layout[1]);
-    let block = Block::default()
-        .title("Time Bandit")
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded);
-    f.render_widget(block, vertical_layout[0]);
+
+    // timer view
+    let elapsed_time = {
+        let elapsed_time_guard = app.timer.elapsed_time.lock().unwrap();
+        *elapsed_time_guard
+    };
+    let timer = Paragraph::new(format!(
+        "Task: {} Start Time: {} Elapsed Time: {}",
+        &selected_task_name,
+        app.timer.start_time.unwrap_or_default(),
+        elapsed_time.unwrap_or_default()
+    ))
+    .block(
+        Block::default()
+            .title("Time Bandit")
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded),
+    );
+    f.render_widget(timer, vertical_layout[0]);
 
     let task_list = List::new(app.items.items.clone())
         .block(
@@ -114,12 +184,16 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
         .highlight_symbol(">> ");
     f.render_stateful_widget(task_list, middle_rectangles[0], &mut app.items.state);
 
-    let selected_task_index = app.items.state.selected().unwrap_or_default();
-    let selected_task_name = app.tasks[selected_task_index].name.clone();
-    let events = store.get_events_by_task(selected_task_name);
-
+    let events = store.get_events_by_task(&selected_task_name);
     let events = events.unwrap();
-    let rows = events.into_iter().map(|event| {
+    // let datasets = vec![Dataset::default()
+    //     .name("events")
+    //     .marker(symbols::Marker::Braille)
+    //     .style(Style::default().fg(ratatui::style::Color::Yellow))
+    //     .graph_type(ratatui::widgets::GraphType::Line)
+    //     .data()];
+
+    let rows = events.clone().into_iter().map(|event| {
         Row::new(vec![
             event
                 .event
@@ -137,7 +211,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
         .header(Row::new(vec!["Time Stamp", "Duration", "Notes"]))
         .block(
             Block::default()
-                .title("Task Event Details")
+                .title(format!("Details for '{}' Events", selected_task_name))
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
         )
@@ -181,6 +255,8 @@ pub fn run_app(store: Store) -> Result<(), Error> {
                         KeyCode::Char('q') => break,
                         KeyCode::Char('j') => app.items.next(),
                         KeyCode::Char('k') => app.items.previous(),
+                        KeyCode::Char('s') => app.timer.start(),
+                        KeyCode::Char('d') => app.timer.stop(),
                         _ => {}
                     }
                 }
