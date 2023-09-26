@@ -20,7 +20,7 @@ pub struct Event {
     pub duration: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EventWithTaskName {
     pub event: Event,
     pub task_name: String,
