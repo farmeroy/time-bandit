@@ -157,7 +157,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
             table.set_titles(row!["ID", "Task Name", "Time Stamp", "Duration", "Notes"]);
             if let Some(task) = task_name {
-                events_iter = store.get_events_by_task(task)?;
+                events_iter = store.get_events_by_task(&task)?;
             } else {
                 events_iter = store.get_events().unwrap();
             }
