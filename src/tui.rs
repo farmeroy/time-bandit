@@ -82,7 +82,7 @@ impl<T> App<T> {
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
-    let chunks = Layout::default()
+    let vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints(
@@ -94,11 +94,16 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
             .as_ref(),
         )
         .split(f.size());
+    let middle_rectangles = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Max(30), Constraint::Percentage(60)].as_ref())
+        .split(vertical_layout[1]);
     let block = Block::default()
         .title("Time Bandit")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
-    f.render_widget(block, chunks[0]);
+    f.render_widget(block, vertical_layout[0]);
+
     let task_list = List::new(app.items.items.clone())
         .block(
             Block::default()
@@ -107,7 +112,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
                 .border_type(BorderType::Rounded),
         )
         .highlight_symbol(">> ");
-    f.render_stateful_widget(task_list, chunks[1], &mut app.items.state);
+    f.render_stateful_widget(task_list, middle_rectangles[0], &mut app.items.state);
 
     let selected_task_index = app.items.state.selected().unwrap_or_default();
     let selected_task_name = app.tasks[selected_task_index].name.clone();
@@ -116,7 +121,6 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
     let events = events.unwrap();
     let rows = events.into_iter().map(|event| {
         Row::new(vec![
-            format_elapsed_time(event.event.duration as u64),
             event
                 .event
                 .time_stamp
@@ -124,24 +128,25 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
                 .unwrap_or_default()
                 .format("%Y-%m-%d %H:%M")
                 .to_string(),
-            event.event.notes.unwrap_or_default(),
+            format_elapsed_time(event.event.duration as u64),
+            event.event.notes.unwrap_or("---".to_string()),
         ])
     });
 
     let events_table = Table::new(rows)
-        .header(Row::new(vec!["duration", "time stamp", "notes"]))
+        .header(Row::new(vec!["Time Stamp", "Duration", "Notes"]))
         .block(
             Block::default()
-                .title("Task Details")
+                .title("Task Event Details")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
         )
         .widths(&[
+            Constraint::Max(30),
             Constraint::Max(15),
-            Constraint::Max(35),
-            Constraint::Percentage(50),
+            Constraint::Min(30),
         ]);
-    f.render_widget(events_table, chunks[2]);
+    f.render_widget(events_table, vertical_layout[2]);
 }
 
 pub fn run_app(store: Store) -> Result<(), Error> {
