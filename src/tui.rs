@@ -19,9 +19,6 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    style::Style,
-    symbols::{self, block},
-    text::Line,
     widgets::{
         Block, BorderType, Borders, Dataset, List, ListItem, ListState, Paragraph, Row, Table,
     },
@@ -109,7 +106,9 @@ impl Timer {
         }
     }
     fn start(&mut self) {
-        self.start_time = Some(Local::now());
+        if self.is_on.load(Ordering::Relaxed) {
+            return;
+        };
         self.is_on.store(true, Ordering::Relaxed);
         let is_on = Arc::clone(&self.is_on);
         let elapsed_time = Arc::clone(&self.elapsed_time);
@@ -122,6 +121,7 @@ impl Timer {
             }
         });
         self.thread_handle = Some(thread_handle);
+        self.start_time = Some(Local::now());
     }
     fn stop(&mut self) {
         self.is_on.store(false, Ordering::Relaxed);
