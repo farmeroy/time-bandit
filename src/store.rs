@@ -168,7 +168,7 @@ impl Store {
 
         Ok(tasks_with_events)
     }
-    pub fn get_events_by_task(&self, task_name: String) -> Result<Vec<EventWithTaskName>> {
+    pub fn get_events_by_task(&self, task_name: &String) -> Result<Vec<EventWithTaskName>> {
         let stmt = &mut self.connection.prepare(
             "SELECT 
                 event.id AS event_id,
