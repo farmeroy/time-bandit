@@ -74,7 +74,7 @@ impl<T> StatefulList<T> {
 struct App<T> {
     items: StatefulList<T>,
     tasks: Vec<Task>,
-    events: Option<Vec<Event>>, // this is not currently used
+    active_task: Option<Task>,
     timer: Timer,
 }
 impl<T> App<T> {
@@ -82,7 +82,7 @@ impl<T> App<T> {
         App {
             items: StatefulList::with_item(items),
             tasks,
-            events: None,
+            active_task: None,
             timer: Timer::new(),
         }
     }
@@ -160,9 +160,13 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
         let elapsed_time_guard = app.timer.elapsed_time.lock().unwrap();
         *elapsed_time_guard
     };
+    let active_task_name = match &app.active_task {
+        Some(task) => task.name.clone(),
+        None => "".to_string(),
+    };
     let timer = Paragraph::new(format!(
         "Task: {} Start Time: {} Elapsed Time: {}",
-        &selected_task_name,
+        active_task_name,
         app.timer.start_time.unwrap_or_default(),
         elapsed_time.unwrap_or_default()
     ))
@@ -211,7 +215,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ListItem>, store: &Store) {
         .header(Row::new(vec!["Time Stamp", "Duration", "Notes"]))
         .block(
             Block::default()
-                .title(format!("Details for '{}' Events", selected_task_name))
+                .title(format!("Events for '{}'", selected_task_name))
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
         )
@@ -255,7 +259,11 @@ pub fn run_app(store: Store) -> Result<(), Error> {
                         KeyCode::Char('q') => break,
                         KeyCode::Char('j') => app.items.next(),
                         KeyCode::Char('k') => app.items.previous(),
-                        KeyCode::Char('s') => app.timer.start(),
+                        KeyCode::Char('s') => {
+                            app.timer.start();
+                            app.active_task =
+                                Some(app.tasks[app.items.state.selected().unwrap()].clone())
+                        }
                         KeyCode::Char('d') => app.timer.stop(),
                         _ => {}
                     }

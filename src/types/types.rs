@@ -4,7 +4,7 @@ pub struct TaskWithEvents {
     pub events: Option<Vec<Event>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Task {
     pub id: i32,
     pub name: String,
