@@ -1,11 +1,7 @@
+use crate::tui::{stateful_list::StatefulList, timer::Timer};
 use crate::{format_elapsed_time, types::types::Task};
 use std::{
     io,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
-    thread,
     time::{Duration, Instant},
 };
 
@@ -19,57 +15,11 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    widgets::{
-        Block, BorderType, Borders, Dataset, List, ListItem, ListState, Paragraph, Row, Table,
-    },
+    widgets::{Block, BorderType, Borders, List, ListItem, Paragraph, Row, Table},
     Frame, Terminal,
 };
 
 use crate::store::Store;
-
-struct StatefulList<T> {
-    state: ListState,
-    items: Vec<T>,
-}
-impl<T> StatefulList<T> {
-    fn with_item(items: Vec<T>) -> StatefulList<T> {
-        StatefulList {
-            state: ListState::default(),
-            items,
-        }
-    }
-    fn next(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    fn previous(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    fn unselect(&mut self) {
-        self.state.select(None);
-    }
-}
 
 struct App<T> {
     items: StatefulList<T>,
@@ -85,53 +35,6 @@ impl<T> App<T> {
             active_task: None,
             timer: Timer::new(),
         }
-    }
-}
-
-#[derive(Debug)]
-struct Timer {
-    is_on: Arc<AtomicBool>,
-    start_time: Option<DateTime<Local>>,
-    elapsed_time: Arc<Mutex<Option<u64>>>,
-    thread_handle: Option<thread::JoinHandle<()>>,
-}
-
-impl Timer {
-    fn new() -> Timer {
-        Timer {
-            is_on: Arc::new(AtomicBool::new(false)),
-            start_time: None,
-            elapsed_time: Arc::new(Mutex::new(None)),
-            thread_handle: None,
-        }
-    }
-    fn start(&mut self) {
-        if self.is_on.load(Ordering::Relaxed) {
-            return;
-        };
-        self.is_on.store(true, Ordering::Relaxed);
-        let is_on = Arc::clone(&self.is_on);
-        let elapsed_time = Arc::clone(&self.elapsed_time);
-        let start_time = Instant::now();
-        let thread_handle = thread::spawn(move || loop {
-            let mut elapsed_time = elapsed_time.lock().unwrap();
-            *elapsed_time = Some(start_time.elapsed().as_secs());
-            if !is_on.load(std::sync::atomic::Ordering::Relaxed) {
-                break;
-            }
-        });
-        self.thread_handle = Some(thread_handle);
-        self.start_time = Some(Local::now());
-    }
-    fn stop(&mut self) {
-        self.is_on.store(false, Ordering::Relaxed);
-        if let Some(thread_handle) = self.thread_handle.take() {
-            thread_handle.join().unwrap();
-        }
-    }
-    fn clear(&mut self) {
-        self.start_time = None;
-        self.elapsed_time.lock().unwrap().take();
     }
 }
 

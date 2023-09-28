@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 total_events
             );
         }
-        Commands::Tui => tui::run_app(store)?,
+        Commands::Tui => tui::tui::run_app(store)?,
     }
 
     Ok(())
