@@ -1,5 +1,6 @@
-use crate::types::types::{Event, EventWithTaskName, Task, TaskWithEvents};
 use rusqlite::{params, Connection, Result};
+use types::{Event, EventWithTaskName, Task, TaskWithEvents};
+pub mod types;
 
 #[derive(Debug)]
 pub struct Store {

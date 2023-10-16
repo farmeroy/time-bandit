@@ -19,10 +19,7 @@ use dirs::home_dir;
 
 use chrono::{DateTime, Local};
 
-use crate::types::types::EventWithTaskName;
-
-mod store;
-mod types;
+use store::types::EventWithTaskName;
 
 fn format_elapsed_time(total_seconds: u64) -> String {
     let hours = total_seconds / 3600;
