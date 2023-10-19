@@ -44,10 +44,13 @@ impl Store {
         now: String,
         duration: u64,
     ) -> Result<Event> {
-        if let Some(task_id) = &self.get_task_id_by_name(&name).await.unwrap_or(None) {
+        if let Some(task_id) = self.get_task_id_by_name(&name).await.unwrap() {
+            println!("in let Some id");
             self.create_event(&task_id, &details, &now, &duration).await
         } else {
-            let new_task = &self.create_task(&name, &details).await.unwrap();
+            println!("in else statement");
+            let new_task = self.create_task(&name, &details).await.unwrap();
+            println!("unwrapped new task");
             self.create_event(&new_task.id, &details, &now, &duration)
                 .await
         }
@@ -183,10 +186,11 @@ impl Store {
     pub async fn get_task_id_by_name(&self, task_name: &str) -> Result<Option<i32>> {
         match sqlx::query("SELECT id FROM task WHERE name = ?")
             .bind(task_name)
-            .fetch_one(&self.connection)
+            .map(|row: SqliteRow| row.get("id"))
+            .fetch_optional(&self.connection)
             .await
         {
-            Ok(id) => Ok(Some(id.get(0))),
+            Ok(id) => Ok(id),
             Err(e) => Err(e),
         }
     }
@@ -215,8 +219,9 @@ impl Store {
         now: &str,
         duration: &u64,
     ) -> Result<Event> {
+        println!("got into create event");
         match sqlx::query(
-            "INSERT INTO event (task_id, notes, time_stamp, duration) VALUES (?1, ?2, ?3, ?4) ",
+            "INSERT INTO event (task_id, notes, time_stamp, duration) VALUES (?1, ?2, ?3, ?4) RETURNING id, task_id, notes, time_stamp, duration",
         )
         .bind(task_id)
         .bind(notes)
@@ -225,14 +230,17 @@ impl Store {
         .map(|row: SqliteRow| Event {
             id: row.get("id"),
             task_id: row.get("task_id"),
-            notes: row.get("notes"),
+            notes: Some(row.get("notes")),
             time_stamp: row.get("time_stamp"),
             duration: row.get("duration"),
         })
         .fetch_one(&self.connection)
         .await
         {
-            Ok(event) => Ok(event),
+            Ok(event) => {
+                println!("the event was created");
+                Ok(event)
+            }
             Err(e) => Err(e),
         }
     }
