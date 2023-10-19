@@ -45,12 +45,9 @@ impl Store {
         duration: u64,
     ) -> Result<Event> {
         if let Some(task_id) = self.get_task_id_by_name(&name).await.unwrap() {
-            println!("in let Some id");
             self.create_event(&task_id, &details, &now, &duration).await
         } else {
-            println!("in else statement");
             let new_task = self.create_task(&name, &details).await.unwrap();
-            println!("unwrapped new task");
             self.create_event(&new_task.id, &details, &now, &duration)
                 .await
         }
@@ -196,16 +193,20 @@ impl Store {
     }
 
     pub async fn create_task(&self, task_name: &str, details: &str) -> Result<Task> {
-        match sqlx::query("INSERT INTO task (name, details) VALUES (?1, ?2)")
-            .bind(task_name)
-            .bind(details)
-            .map(|row: SqliteRow| Task {
-                id: row.get("id"),
-                name: row.get("name"),
-                details: Some(row.get("details")),
-            })
-            .fetch_one(&self.connection)
-            .await
+        match sqlx::query(
+            "INSERT INTO task (name, details) 
+            VALUES (?1, ?2)
+            RETURNING id, name, details",
+        )
+        .bind(task_name)
+        .bind(details)
+        .map(|row: SqliteRow| Task {
+            id: row.get("id"),
+            name: row.get("name"),
+            details: Some(row.get("details")),
+        })
+        .fetch_one(&self.connection)
+        .await
         {
             Ok(task) => Ok(task),
             Err(e) => Err(e),
@@ -219,7 +220,6 @@ impl Store {
         now: &str,
         duration: &u64,
     ) -> Result<Event> {
-        println!("got into create event");
         match sqlx::query(
             "INSERT INTO event (task_id, notes, time_stamp, duration) 
             VALUES (?1, ?2, ?3, ?4) 
@@ -239,10 +239,7 @@ impl Store {
         .fetch_one(&self.connection)
         .await
         {
-            Ok(event) => {
-                println!("the event was created");
-                Ok(event)
-            }
+            Ok(event) => Ok(event),
             Err(e) => Err(e),
         }
     }
