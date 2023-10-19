@@ -221,7 +221,9 @@ impl Store {
     ) -> Result<Event> {
         println!("got into create event");
         match sqlx::query(
-            "INSERT INTO event (task_id, notes, time_stamp, duration) VALUES (?1, ?2, ?3, ?4) RETURNING id, task_id, notes, time_stamp, duration",
+            "INSERT INTO event (task_id, notes, time_stamp, duration) 
+            VALUES (?1, ?2, ?3, ?4) 
+            RETURNING id, task_id, notes, time_stamp, duration",
         )
         .bind(task_id)
         .bind(notes)
