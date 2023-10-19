@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use clap::{Parser, Subcommand};
+use tokio;
 #[macro_use]
 extern crate prettytable;
 use prettytable::{format, Table};
@@ -74,23 +75,25 @@ enum TaskAction {
     /// List all tasks
     List,
 }
-
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let home_dir = home_dir().unwrap();
     let store =
-        store::Store::new(format!("{}/.time_bandit.db3", home_dir.to_string_lossy()).as_str())?;
+        store::Store::new(format!("{}/.time_bandit.db3", home_dir.to_string_lossy()).as_str())
+            .await
+            .unwrap();
     match &cli.command {
         Commands::Task(action) => {
             match &action {
                 TaskAction::List => {
-                    let task_iter = store.get_tasks().unwrap();
+                    let task_iter = store.get_tasks().await.unwrap();
                     let mut table = Table::new();
                     table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
                     table.set_titles(row!["Task Name", "Total Time Spent"]);
                     for task in task_iter {
                         let task = task;
-                        let time_spent = store.get_time_spent_by_task(task.id).unwrap();
+                        let time_spent = store.get_time_spent_by_task(task.id).await.unwrap();
 
                         table.add_row(row![task.name, format_elapsed_time(time_spent.try_into()?)]);
                     }
@@ -131,12 +134,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     // Wait for the loop thread to finish
                     handle.join().expect("The loop thread panicked");
-                    store.add_task_event(
-                        args.name.to_string(),
-                        args.details.clone().unwrap_or_default(),
-                        now.to_string(),
-                        start_time.elapsed().as_secs().try_into()?,
-                    )?;
+                    store
+                        .add_task_event(
+                            args.name.to_string(),
+                            args.details.clone().unwrap_or_default(),
+                            now.to_string(),
+                            start_time.elapsed().as_secs().try_into()?,
+                        )
+                        .await
+                        .unwrap();
 
                     println!(
                         "\rTask complete! Elapsed time: {:?}",
@@ -152,9 +158,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
             table.set_titles(row!["ID", "Task Name", "Time Stamp", "Duration", "Notes"]);
             if let Some(task) = task_name {
-                events_iter = store.get_events_by_task(task)?;
+                events_iter = store.get_events_by_task(task).await.unwrap();
             } else {
-                events_iter = store.get_events().unwrap();
+                events_iter = store.get_events().await.unwrap();
             }
             let mut time_spent = 0;
             let mut total_events = 0;
