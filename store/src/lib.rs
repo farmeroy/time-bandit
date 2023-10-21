@@ -97,6 +97,7 @@ impl Store {
         }
         Ok(tasks_with_events)
     }
+    /// Get events according to task name
     pub async fn get_events_by_task(self, task_name: String) -> Result<Vec<EventWithTaskName>> {
         match sqlx::query(
             "SELECT 

@@ -9,3 +9,4 @@ edition = "2021"
 axum = "0.6.18"
 tokio = {version ="1",  features = ["full"] }
 store = { path = "../store" }
+dirs = "5.0"

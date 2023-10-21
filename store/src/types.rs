@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 #[derive(Debug, FromRow)]
 pub struct TaskWithEvents {
@@ -12,7 +13,7 @@ pub struct Task {
     pub details: Option<String>,
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Event {
     pub id: i32,
     pub task_id: i32,
@@ -21,7 +22,7 @@ pub struct Event {
     pub duration: i32,
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct EventWithTaskName {
     pub event: Event,
     pub task_name: String,
