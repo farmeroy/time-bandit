@@ -133,7 +133,7 @@ impl Store {
         }
     }
     /// get all the events
-    pub async fn get_events(self) -> Result<Vec<EventWithTaskName>> {
+    pub async fn get_events(&self) -> Result<Vec<EventWithTaskName>> {
         match sqlx::query(
             "SELECT 
                 event.id AS event_id,
