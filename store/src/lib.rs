@@ -48,6 +48,7 @@ impl Store {
             self.create_event(&task_id, &details, &now, &duration).await
         } else {
             let new_task = self.create_task(&name, &details).await.unwrap();
+            println!("{:?}", new_task);
             self.create_event(&new_task.id, &details, &now, &duration)
                 .await
         }
@@ -229,7 +230,7 @@ impl Store {
         .bind(task_id)
         .bind(notes)
         .bind(now)
-        .bind(duration.to_string())
+        .bind(duration.to_owned() as i32)
         .map(|row: SqliteRow| Event {
             id: row.get("id"),
             task_id: row.get("task_id"),
@@ -240,8 +241,14 @@ impl Store {
         .fetch_one(&self.connection)
         .await
         {
-            Ok(event) => Ok(event),
-            Err(e) => Err(e),
+            Ok(event) => {
+                println!("{:?}", event);
+                Ok(event)
+            }
+            Err(e) => {
+                println!("err");
+                Err(e)
+            }
         }
     }
 }
