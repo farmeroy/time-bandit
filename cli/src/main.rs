@@ -102,7 +102,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 TaskAction::Start(args) => {
                     println!("Task: {}", args.name);
                     println!("Details: {}", args.details.clone().unwrap_or_default());
-                    // capture the moment the task was begun
                     let now = Local::now();
                     let should_terminate = Arc::new(Mutex::new(AtomicBool::new(false)));
                     let should_terminate_thread = should_terminate.clone();
@@ -146,6 +145,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Ok(event) => Ok(event),
                         Err(e) => Err(e),
                     };
+                    thread::sleep(Duration::from_secs(1));
                     println!("{:?}", event);
 
                     println!(
