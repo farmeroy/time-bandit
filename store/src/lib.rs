@@ -45,12 +45,32 @@ impl Store {
         duration: u64,
     ) -> Result<Event> {
         if let Some(task_id) = self.get_task_id_by_name(&name).await.unwrap() {
-            self.create_event(&task_id, &details, &now, &duration).await
+            match self.create_event(task_id, &details, &now, duration).await {
+                Ok(event) => {
+                    println!("{:?}", event);
+                    Ok(event)
+                }
+                Err(e) => {
+                    println!("{:?}", e);
+                    Err(e)
+                }
+            }
         } else {
             let new_task = self.create_task(&name, &details).await.unwrap();
             println!("{:?}", new_task);
-            self.create_event(&new_task.id, &details, &now, &duration)
+            match self
+                .create_event(new_task.id, &details, &now, duration)
                 .await
+            {
+                Ok(event) => {
+                    println!("{:?}", event);
+                    Ok(event)
+                }
+                Err(e) => {
+                    println!("{:?}", e);
+                    Err(e)
+                }
+            }
         }
     }
     /// Fetch all tasks
@@ -99,7 +119,7 @@ impl Store {
         Ok(tasks_with_events)
     }
     /// Get events according to task name
-    pub async fn get_events_by_task(self, task_name: String) -> Result<Vec<EventWithTaskName>> {
+    pub async fn get_events_by_task(&self, task_name: String) -> Result<Vec<EventWithTaskName>> {
         match sqlx::query(
             "SELECT 
                 event.id AS event_id,
@@ -217,11 +237,12 @@ impl Store {
 
     pub async fn create_event(
         &self,
-        task_id: &i32,
+        task_id: i32,
         notes: &str,
         now: &str,
-        duration: &u64,
+        duration: u64,
     ) -> Result<Event> {
+        println!("{}", notes);
         match sqlx::query(
             "INSERT INTO event (task_id, notes, time_stamp, duration) 
             VALUES (?1, ?2, ?3, ?4) 
@@ -230,7 +251,7 @@ impl Store {
         .bind(task_id)
         .bind(notes)
         .bind(now)
-        .bind(duration.to_owned() as i32)
+        .bind(duration as i32)
         .map(|row: SqliteRow| Event {
             id: row.get("id"),
             task_id: row.get("task_id"),

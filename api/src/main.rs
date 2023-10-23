@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use dirs::home_dir;
 use store::{
     self,
-    types::{EventWithTaskName, Task},
+    types::{Event, EventWithTaskName, Task},
 };
 
 #[derive(Clone)]
@@ -34,6 +34,7 @@ async fn router() -> Router {
         .route("/", get(|| async { "Time Bandit" }))
         .route("/events", get(get_events))
         .route("/tasks", get(get_tasks))
+        .route("/add-event", get(add_event))
         .with_state(state)
 }
 
@@ -46,6 +47,21 @@ async fn get_events(
 
 async fn get_tasks(state: State<AppState>) -> Result<Json<Vec<Task>>, (StatusCode, String)> {
     let res = state.store.get_tasks().await.map_err(internal_error)?;
+    Ok(Json(res))
+}
+
+async fn add_event(state: State<AppState>) -> Result<Json<Event>, (StatusCode, String)> {
+    let res = state
+        .store
+        .create_event(
+            10,
+            "testing from the api",
+            "2023-10-22 18:03:06.722619025 -07:00",
+            4,
+        )
+        .await
+        .map_err(internal_error)?;
+    print!("{:?}", res);
     Ok(Json(res))
 }
 

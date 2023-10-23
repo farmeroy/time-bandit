@@ -130,11 +130,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     should_terminate
                         .lock()
                         .unwrap()
-                        .store(true, Ordering::Relaxed);
+                        .store(true, Ordering::Release);
 
                     // Wait for the loop thread to finish
                     handle.join().expect("The loop thread panicked");
-                    store
+                    let event = match store
                         .add_task_event(
                             args.name.to_string(),
                             args.details.clone().unwrap_or_default(),
@@ -142,7 +142,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             start_time.elapsed().as_secs().try_into()?,
                         )
                         .await
-                        .unwrap();
+                    {
+                        Ok(event) => Ok(event),
+                        Err(e) => Err(e),
+                    };
+                    println!("{:?}", event);
 
                     println!(
                         "\rTask complete! Elapsed time: {:?}",
