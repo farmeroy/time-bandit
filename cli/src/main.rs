@@ -107,7 +107,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let should_terminate_thread = should_terminate.clone();
 
                     let start_time = Instant::now();
-                    let handle = thread::spawn(move || loop {
+                    println!("Press Enter to stop");
+                    let handle = thread::spawn(move || {
+                        // wait for the user to press Enter to terminate the loop
+                        let mut buffer = [0u8; 1];
+                        io::stdin().read(&mut buffer).expect("Failed to read line");
+
+                        // Set the should_terminate flag to true to signal the loop to terminate
+                        should_terminate
+                            .lock()
+                            .unwrap()
+                            .store(true, Ordering::Release);
+                    });
+                    loop {
                         print!("\r{}", format_elapsed_time(start_time.elapsed().as_secs()));
 
                         io::stdout().flush().unwrap();
@@ -118,19 +130,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         {
                             break;
                         }
-                        thread::sleep(Duration::from_millis(250));
-                    });
-                    println!("Press Enter to stop");
-                    // wait for the user to press Enter to terminate the loop
-                    let mut buffer = [0u8; 1];
-                    io::stdin().read(&mut buffer).expect("Failed to read line");
-
-                    // Set the should_terminate flag to true to signal the loop to terminate
-                    should_terminate
-                        .lock()
-                        .unwrap()
-                        .store(true, Ordering::Release);
-
+                    }
                     // Wait for the loop thread to finish
                     handle.join().expect("The loop thread panicked");
                     let event = match store
@@ -145,7 +145,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Ok(event) => Ok(event),
                         Err(e) => Err(e),
                     };
-                    thread::sleep(Duration::from_secs(1));
+                    thread::sleep(Duration::from_millis(250));
                     println!("{:?}", event);
 
                     println!(
