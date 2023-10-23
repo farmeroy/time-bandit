@@ -53,10 +53,10 @@ async fn get_tasks(state: State<AppState>) -> Result<Json<Vec<Task>>, (StatusCod
 async fn add_event(state: State<AppState>) -> Result<Json<Event>, (StatusCode, String)> {
     let res = state
         .store
-        .create_event(
-            10,
-            "testing from the api",
-            "2023-10-22 18:03:06.722619025 -07:00",
+        .add_task_event(
+            "silks".to_string(),
+            "testing from the api".to_string(),
+            "2023-10-22 18:03:06.722619025 -07:00".to_string(),
             4,
         )
         .await
