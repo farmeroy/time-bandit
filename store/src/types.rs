@@ -22,8 +22,21 @@ pub struct Event {
     pub duration: i32,
 }
 
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct NewEvent {
+    pub notes: Option<String>,
+    pub time_stamp: String,
+    pub duration: i32,
+}
+
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct EventWithTaskName {
     pub event: Event,
+    pub task_name: String,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize)]
+pub struct NewEventWithTaskName {
+    pub event: NewEvent,
     pub task_name: String,
 }

@@ -1,8 +1,13 @@
-use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    routing::{get, post},
+    Json, Router,
+};
 use dirs::home_dir;
 use store::{
     self,
-    types::{Event, EventWithTaskName, Task},
+    types::{Event, EventWithTaskName, NewEvent, NewEventWithTaskName, Task},
 };
 
 #[derive(Clone)]
@@ -34,7 +39,7 @@ async fn router() -> Router {
         .route("/", get(|| async { "Time Bandit" }))
         .route("/events", get(get_events))
         .route("/tasks", get(get_tasks))
-        .route("/add-event", get(add_event))
+        .route("/add-event", post(add_event))
         .with_state(state)
 }
 
@@ -50,14 +55,17 @@ async fn get_tasks(state: State<AppState>) -> Result<Json<Vec<Task>>, (StatusCod
     Ok(Json(res))
 }
 
-async fn add_event(state: State<AppState>) -> Result<Json<Event>, (StatusCode, String)> {
+async fn add_event(
+    state: State<AppState>,
+    event: Json<NewEventWithTaskName>,
+) -> Result<Json<Event>, (StatusCode, String)> {
     let res = state
         .store
         .add_task_event(
-            "silks".to_string(),
-            "testing from the api".to_string(),
-            "2023-10-22 18:03:06.722619025 -07:00".to_string(),
-            4,
+            event.task_name.to_string(),
+            event.event.clone().notes.unwrap_or_default(),
+            event.event.time_stamp.to_string(),
+            event.event.duration as u64,
         )
         .await
         .map_err(internal_error)?;
