@@ -130,6 +130,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         {
                             break;
                         }
+                        thread::sleep(Duration::from_millis(250));
                     }
                     // Wait for the loop thread to finish
                     handle.join().expect("The loop thread panicked");
@@ -145,9 +146,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Ok(event) => Ok(event),
                         Err(e) => Err(e),
                     };
-                    thread::sleep(Duration::from_millis(250));
                     println!("{:?}", event);
-
+                    // here we sleep the thread to ensure the event is written to sqlite
+                    // A better solution may be to wrap this entire process in its own
+                    // async function?
+                    thread::sleep(Duration::from_millis(250));
                     println!(
                         "\rTask complete! Elapsed time: {:?}",
                         format_elapsed_time(start_time.elapsed().as_secs())
