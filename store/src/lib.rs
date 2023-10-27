@@ -46,10 +46,7 @@ impl Store {
     ) -> Result<Event> {
         if let Some(task_id) = self.get_task_id_by_name(&name).await.unwrap() {
             match self.create_event(task_id, &details, &now, duration).await {
-                Ok(event) => {
-                    println!("{:?}", event);
-                    Ok(event)
-                }
+                Ok(event) => Ok(event),
                 Err(e) => {
                     println!("{:?}", e);
                     Err(e)
@@ -96,8 +93,8 @@ impl Store {
         let tasks = self.get_tasks().await.unwrap();
         let mut tasks_with_events: Vec<TaskWithEvents> = Vec::new();
 
-        while let Some(task) = tasks.iter().next().cloned() {
-            let _ = match sqlx::query("SELECT * FROM event WHERE event.task_id = $1")
+        for task in &tasks {
+            let events = sqlx::query("SELECT * FROM event WHERE event.task_id = $1")
                 .bind(task.id)
                 .map(|row: SqliteRow| Event {
                     id: row.get("id"),
@@ -108,13 +105,11 @@ impl Store {
                 })
                 .fetch_all(&self.connection)
                 .await
-            {
-                Ok(events) => Ok(tasks_with_events.push(TaskWithEvents {
-                    task,
-                    events: Some(events),
-                })),
-                Err(e) => Err(e),
-            };
+                .unwrap();
+            tasks_with_events.push(TaskWithEvents {
+                task: task.to_owned(),
+                events: Some(events),
+            })
         }
         Ok(tasks_with_events)
     }

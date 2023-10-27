@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Deserialize, Serialize)]
 pub struct TaskWithEvents {
     pub task: Task,
     pub events: Option<Vec<Event>>,
