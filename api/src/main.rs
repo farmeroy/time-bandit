@@ -10,7 +10,7 @@ use hyper::Body;
 use std::{convert::Infallible, net::SocketAddr};
 use store::{
     self,
-    types::{Event, EventWithTaskName, NewEvent, NewEventWithTaskName, Task},
+    types::{Event, EventWithTaskName, NewEvent, NewEventWithTaskName, Task, TaskWithEvents},
 };
 use tower::{Service, ServiceBuilder, ServiceExt};
 use tower_http::cors::{Any, CorsLayer};
@@ -54,6 +54,7 @@ async fn router() -> Router {
         .route("/events", get(get_events))
         .route("/tasks", get(get_tasks))
         .route("/add-event", post(add_event))
+        .route("/task-events", get(get_tasks_with_events))
         .with_state(state)
         .layer(cors)
 }
@@ -61,8 +62,16 @@ async fn router() -> Router {
 async fn get_events(
     state: State<AppState>,
 ) -> Result<Json<Vec<EventWithTaskName>>, (StatusCode, String)> {
-    let res = state.store.get_events().await.map_err(internal_error)?;
-    Ok(Json(res))
+    match state.store.get_events().await.map_err(internal_error) {
+        Ok(res) => {
+            info!("Fetch events");
+            Ok(Json(res))
+        }
+        Err(e) => {
+            tracing::error!("Error fetching events: {:?}", e);
+            Err(e)
+        }
+    }
 }
 
 async fn get_tasks(state: State<AppState>) -> Result<Json<Vec<Task>>, (StatusCode, String)> {
@@ -84,8 +93,28 @@ async fn add_event(
         )
         .await
         .map_err(internal_error)?;
-    print!("{:?}", res);
+    info!("{:?}", res);
     Ok(Json(res))
+}
+
+async fn get_tasks_with_events(
+    state: State<AppState>,
+) -> Result<Json<Vec<TaskWithEvents>>, (StatusCode, String)> {
+    match state
+        .store
+        .get_tasks_with_events()
+        .await
+        .map_err(internal_error)
+    {
+        Ok(tasks_with_events) => {
+            info!("Fetch all tasks with events");
+            Ok(Json(tasks_with_events))
+        }
+        Err(e) => {
+            tracing::error!("Error fetching tasks and events, {:?}", e);
+            Err(e)
+        }
+    }
 }
 
 fn internal_error<E>(err: E) -> (StatusCode, String)
