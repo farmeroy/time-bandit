@@ -5,10 +5,17 @@ use axum::{
     Json, Router,
 };
 use dirs::home_dir;
+use http::{header, Method, Request, Response};
+use hyper::Body;
+use std::{convert::Infallible, net::SocketAddr};
 use store::{
     self,
     types::{Event, EventWithTaskName, NewEvent, NewEventWithTaskName, Task},
 };
+use tower::{Service, ServiceBuilder, ServiceExt};
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
+use tracing::{event, info, instrument, Level};
 
 #[derive(Clone)]
 struct AppState {
@@ -17,16 +24,22 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
     // build our application with a single route
     let app = router().await;
+    let addr = SocketAddr::from(([0, 0, 0, 0], 7878));
     // run it with hyper on localhost:7878
-    axum::Server::bind(&"0.0.0.0:7878".parse().unwrap())
+    info!("Listening on {addr}");
+    axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
         .unwrap();
 }
 
 async fn router() -> Router {
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_origin(Any);
     let home_dir = home_dir().unwrap();
     let state = AppState {
         store: store::Store::new(
@@ -36,11 +49,13 @@ async fn router() -> Router {
         .unwrap(),
     };
     Router::new()
+        .layer(TraceLayer::new_for_http())
         .route("/", get(|| async { "Time Bandit" }))
         .route("/events", get(get_events))
         .route("/tasks", get(get_tasks))
         .route("/add-event", post(add_event))
         .with_state(state)
+        .layer(cors)
 }
 
 async fn get_events(
