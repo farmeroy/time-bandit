@@ -1,3 +1,5 @@
+import TimeChart from "./components/TimeChart";
+
 const getTaskData = async () => {
   const res = await fetch(`http://localhost:7878/task-events`, {
     cache: "no-store",
@@ -12,7 +14,7 @@ interface Task {
   details?: string;
 }
 
-interface Event {
+export interface Event {
   id: number;
   task_id: number;
   notes: string;
@@ -28,23 +30,28 @@ interface TaskWithEvents {
 export default async function Home() {
   const tasks: TaskWithEvents[] = await getTaskData().then((res) => res);
   const taskCards = tasks.map((task) => (
-    <div className="" key={task.task.id}>
-      <div className="">
-        <p>{task.task.name}</p>
-        <div className="">Time Spent</div>
-        <div className="">
-          {new Date(
-            task.events.reduce((acc, curr) => acc + curr.duration, 0) * 1000
-          )
-            .toISOString()
-            .substring(11, 19)}
+    <div key={task.task.id} className="w-full p-2 m-2 flex border border-1">
+      <div className="w-full">
+        <p className="text-xl">{task.task.name}</p>
+        <TimeChart taskEvents={task.events} />
+      </div>
+      <div className="stats stats-vertical m-3 border w-96 ">
+        <div className="stat w-full">
+          <p className="stat-title">Time Spent</p>
+          <p className="stat-value">
+            {new Date(
+              task.events.reduce((acc, curr) => acc + curr.duration, 0) * 1000
+            )
+              .toISOString()
+              .substring(11, 19)}
+          </p>
         </div>
-        <div className="">
-          <div className="">Number of Events</div>
-          <div className="">{task.events.length}</div>
+        <div className="stat">
+          <p className="stat-title">Number of Events</p>
+          <p className="stat-value">{task.events.length}</p>
         </div>
       </div>
     </div>
   ));
-  return <div className="w-full flex flex-col">{taskCards}</div>;
+  return <div className="flex flex-wrap w-full">{taskCards}</div>;
 }
