@@ -34,11 +34,13 @@ interface TimeChartProps {
 
 const TimeChart = ({ taskEvents }: TimeChartProps) => {
   return (
-    <LineChart width={600} height={200} data={getTaskDurationByDay(taskEvents)}>
-      <XAxis dataKey="date" />
-      <YAxis tick={false} />
-      <Line type="monotone" dataKey={"duration"} stroke="#8884d8" />
-    </LineChart>
+    <ResponsiveContainer>
+      <LineChart data={getTaskDurationByDay(taskEvents)}>
+        <XAxis dataKey="date" />
+        <YAxis tick={false} />
+        <Line type="monotone" dataKey={"duration"} stroke="#8884d8" />
+      </LineChart>
+    </ResponsiveContainer>
   );
 };
 

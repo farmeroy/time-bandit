@@ -30,12 +30,19 @@ interface TaskWithEvents {
 export default async function Home() {
   const tasks: TaskWithEvents[] = await getTaskData().then((res) => res);
   const taskCards = tasks.map((task) => (
-    <div key={task.task.id} className="w-full p-2 m-2 flex border border-1">
-      <div className="w-full">
+    <div
+      key={task.task.id}
+      className="w-full flex join justify-between p-2 m-4 flex rounded-xl border border-1"
+    >
+      <div className="p-4 join-item flex flex-col">
         <p className="text-xl">{task.task.name}</p>
+        <button className="m-1 btn btn-primary">Start</button>
+        <button className="m-1 btn btn-neutral">Details</button>
+      </div>
+      <div className="join-item h-48 flex flex-col w-96 mt-8">
         <TimeChart taskEvents={task.events} />
       </div>
-      <div className="stats stats-vertical m-3 border w-96 ">
+      <div className="join-item stats stats-vertical w-56 m-3 border ">
         <div className="stat w-full">
           <p className="stat-title">Time Spent</p>
           <p className="stat-value">
@@ -53,5 +60,5 @@ export default async function Home() {
       </div>
     </div>
   ));
-  return <div className="flex flex-wrap w-full">{taskCards}</div>;
+  return <div className="flex p-12 flex-wrap w-full">{taskCards}</div>;
 }
