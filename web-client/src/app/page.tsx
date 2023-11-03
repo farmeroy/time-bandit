@@ -1,4 +1,4 @@
-import TimeChart from "./components/TimeChart";
+import TaskCard from "@/components/TaskCard";
 
 const getTaskData = async () => {
   const res = await fetch(`http://localhost:7878/task-events`, {
@@ -22,7 +22,7 @@ export interface Event {
   duration: number;
 }
 
-interface TaskWithEvents {
+export interface TaskWithEvents {
   task: Task;
   events: Event[];
 }
@@ -30,35 +30,11 @@ interface TaskWithEvents {
 export default async function Home() {
   const tasks: TaskWithEvents[] = await getTaskData().then((res) => res);
   const taskCards = tasks.map((task) => (
-    <div
-      key={task.task.id}
-      className="w-full flex join justify-between p-2 m-4 flex rounded-xl border border-1"
-    >
-      <div className="p-4 join-item flex flex-col">
-        <p className="text-xl">{task.task.name}</p>
-        <button className="m-1 btn btn-primary">Start</button>
-        <button className="m-1 btn btn-neutral">Details</button>
-      </div>
-      <div className="join-item h-48 flex flex-col w-96 mt-8">
-        <TimeChart taskEvents={task.events} />
-      </div>
-      <div className="join-item stats stats-vertical w-56 m-3 border ">
-        <div className="stat w-full">
-          <p className="stat-title">Time Spent</p>
-          <p className="stat-value">
-            {new Date(
-              task.events.reduce((acc, curr) => acc + curr.duration, 0) * 1000
-            )
-              .toISOString()
-              .substring(11, 19)}
-          </p>
-        </div>
-        <div className="stat">
-          <p className="stat-title">Number of Events</p>
-          <p className="stat-value">{task.events.length}</p>
-        </div>
-      </div>
-    </div>
+    <TaskCard key={task.task.id} task={task} />
   ));
-  return <div className="flex p-12 flex-wrap w-full">{taskCards}</div>;
+  return (
+    <div className="flex flex-col place-items-center p-6 w-full">
+      {taskCards}
+    </div>
+  );
 }
