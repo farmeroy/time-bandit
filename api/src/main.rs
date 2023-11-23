@@ -1,21 +1,19 @@
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
 use dirs::home_dir;
-use http::{header, Method, Request, Response};
-use hyper::Body;
-use std::{convert::Infallible, net::SocketAddr};
+use http::Method;
+use std::net::SocketAddr;
 use store::{
     self,
-    types::{Event, EventWithTaskName, NewEvent, NewEventWithTaskName, Task, TaskWithEvents},
+    types::{Event, EventWithTaskName, NewEventWithTaskName, Task, TaskWithEvents},
 };
-use tower::{Service, ServiceBuilder, ServiceExt};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing::{event, info, instrument, Level};
+use tracing::info;
 
 #[derive(Clone)]
 struct AppState {
@@ -55,6 +53,7 @@ async fn router() -> Router {
         .route("/tasks", get(get_tasks))
         .route("/add-event", post(add_event))
         .route("/task-events", get(get_tasks_with_events))
+        .route("/tasks/:id", get(get_task_with_events))
         .with_state(state)
         .layer(cors)
 }
@@ -87,7 +86,7 @@ async fn add_event(
         .store
         .add_task_event(
             event.task_name.to_string(),
-            event.event.clone().notes.unwrap_or_default(),
+            event.event.notes.clone().unwrap_or_default(),
             event.event.time_stamp.to_string(),
             event.event.duration as u64,
         )
@@ -95,6 +94,27 @@ async fn add_event(
         .map_err(internal_error)?;
     info!("{:?}", res);
     Ok(Json(res))
+}
+
+async fn get_task_with_events(
+    state: State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<TaskWithEvents>, (StatusCode, String)> {
+    match state
+        .store
+        .get_task_events(id)
+        .await
+        .map_err(internal_error)
+    {
+        Ok(task_with_events) => {
+            info!("Fetch all events by task");
+            Ok(Json(task_with_events))
+        }
+        Err(e) => {
+            tracing::error!("Error fetching tasks and events, {:?}", e);
+            Err(e)
+        }
+    }
 }
 
 async fn get_tasks_with_events(
