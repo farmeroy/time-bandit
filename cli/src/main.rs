@@ -165,7 +165,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
             table.set_titles(row!["ID", "Task Name", "Time Stamp", "Duration", "Notes"]);
             if let Some(task) = task_name {
-                events_iter = store.get_events_by_task(task).await.unwrap();
+                events_iter = store.get_events_with_task_name(task).await.unwrap();
             } else {
                 events_iter = store.get_events().await.unwrap();
             }

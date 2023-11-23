@@ -78,6 +78,44 @@ impl Store {
 
         Ok(tasks)
     }
+    /// Get events according to task name
+    pub async fn get_events_with_task_name(
+        &self,
+        task_name: String,
+    ) -> Result<Vec<EventWithTaskName>> {
+        match sqlx::query(
+            "SELECT 
+                event.id AS event_id,
+                event.task_id AS event_task_id,
+                event.notes AS event_notes,
+                event.time_stamp AS event_time_stamp,
+                event.duration AS event_duration,
+                task.name AS task_name
+                FROM 
+                    event
+                LEFT JOIN 
+                    task ON event.task_id = task.id
+                    WHERE task.name = $1
+            ",
+        )
+        .bind(task_name)
+        .map(|row: SqliteRow| EventWithTaskName {
+            event: Event {
+                id: row.get("event_id"),
+                task_id: row.get("event_task_id"),
+                notes: row.get("event_notes"),
+                time_stamp: row.get("event_time_stamp"),
+                duration: row.get("event_duration"),
+            },
+            task_name: row.get("task_name"),
+        })
+        .fetch_all(&self.connection)
+        .await
+        {
+            Ok(events) => Ok(events),
+            Err(e) => Err(e),
+        }
+    }
     /// Fetch all tasks together with their associated events
     pub async fn get_all_tasks_with_events(&self) -> Result<Vec<TaskWithEvents>> {
         let tasks = self.get_tasks().await.unwrap_or_default();
