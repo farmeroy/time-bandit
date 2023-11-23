@@ -47,26 +47,16 @@ impl Store {
         if let Some(task_id) = self.get_task_id_by_name(&name).await.unwrap() {
             match self.create_event(task_id, &details, &now, duration).await {
                 Ok(event) => Ok(event),
-                Err(e) => {
-                    println!("{:?}", e);
-                    Err(e)
-                }
+                Err(e) => Err(e),
             }
         } else {
             let new_task = self.create_task(&name, &details).await.unwrap();
-            println!("{:?}", new_task);
             match self
                 .create_event(new_task.id, &details, &now, duration)
                 .await
             {
-                Ok(event) => {
-                    println!("{:?}", event);
-                    Ok(event)
-                }
-                Err(e) => {
-                    println!("{:?}", e);
-                    Err(e)
-                }
+                Ok(event) => Ok(event),
+                Err(e) => Err(e),
             }
         }
     }
@@ -90,7 +80,7 @@ impl Store {
     }
     /// Fetch all tasks together with their associated events
     pub async fn get_tasks_with_events(&self) -> Result<Vec<TaskWithEvents>> {
-        let tasks = self.get_tasks().await.unwrap();
+        let tasks = self.get_tasks().await.unwrap_or_default();
         let mut tasks_with_events: Vec<TaskWithEvents> = Vec::new();
 
         for task in &tasks {
@@ -114,8 +104,8 @@ impl Store {
         Ok(tasks_with_events)
     }
     /// Get events according to task name
-    pub async fn get_events_by_task(&self, task_name: String) -> Result<Vec<EventWithTaskName>> {
-        match sqlx::query(
+    pub async fn get_events_by_task(&self, task_id: String) -> Result<TaskWithEvents> {
+        let events = sqlx::query(
             "SELECT 
                 event.id AS event_id,
                 event.task_id AS event_task_id,
@@ -127,25 +117,35 @@ impl Store {
                     event
                 LEFT JOIN 
                     task ON event.task_id = task.id
-                    WHERE task.name = $1
+                    WHERE task.id = $1
             ",
         )
-        .bind(task_name)
-        .map(|row: SqliteRow| EventWithTaskName {
-            event: Event {
-                id: row.get("event_id"),
-                task_id: row.get("event_task_id"),
-                notes: row.get("event_notes"),
-                time_stamp: row.get("event_time_stamp"),
-                duration: row.get("event_duration"),
-            },
-            task_name: row.get("task_name"),
+        .bind(&task_id)
+        .map(|row: SqliteRow| Event {
+            id: row.get("event_id"),
+            task_id: row.get("event_task_id"),
+            notes: row.get("event_notes"),
+            time_stamp: row.get("event_time_stamp"),
+            duration: row.get("event_duration"),
         })
         .fetch_all(&self.connection)
         .await
+        .unwrap_or_default();
+        match sqlx::query("SELECT * FROM task WHERE task.id = $1")
+            .bind(task_id)
+            .map(|row: SqliteRow| Task {
+                id: row.get("id"),
+                name: row.get("name"),
+                details: row.get("details"),
+            })
+            .fetch_one(&self.connection)
+            .await
         {
-            Ok(events) => Ok(events),
-            Err(e) => Err(e),
+            Ok(task) => Ok(TaskWithEvents {
+                task,
+                events: Some(events),
+            }),
+            Err(err) => Err(err),
         }
     }
     /// get all the events
@@ -237,7 +237,6 @@ impl Store {
         now: &str,
         duration: u64,
     ) -> Result<Event> {
-        println!("{}", notes);
         match sqlx::query(
             "INSERT INTO event (task_id, notes, time_stamp, duration) 
             VALUES (?1, ?2, ?3, ?4) 
@@ -257,14 +256,8 @@ impl Store {
         .fetch_one(&self.connection)
         .await
         {
-            Ok(event) => {
-                println!("{:?}", event);
-                Ok(event)
-            }
-            Err(e) => {
-                println!("err");
-                Err(e)
-            }
+            Ok(event) => Ok(event),
+            Err(e) => Err(e),
         }
     }
 }
