@@ -79,7 +79,7 @@ impl Store {
         Ok(tasks)
     }
     /// Fetch all tasks together with their associated events
-    pub async fn get_tasks_with_events(&self) -> Result<Vec<TaskWithEvents>> {
+    pub async fn get_all_tasks_with_events(&self) -> Result<Vec<TaskWithEvents>> {
         let tasks = self.get_tasks().await.unwrap_or_default();
         let mut tasks_with_events: Vec<TaskWithEvents> = Vec::new();
 
@@ -104,7 +104,7 @@ impl Store {
         Ok(tasks_with_events)
     }
     /// Get events according to task name
-    pub async fn get_events_by_task(&self, task_id: String) -> Result<TaskWithEvents> {
+    pub async fn get_one_task_with_events(&self, task_id: String) -> Result<TaskWithEvents> {
         let events = sqlx::query(
             "SELECT 
                 event.id AS event_id,
